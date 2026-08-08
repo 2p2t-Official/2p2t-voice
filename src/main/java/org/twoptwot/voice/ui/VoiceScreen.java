@@ -53,7 +53,8 @@ public final class VoiceScreen extends Screen {
         signaling.refreshGroups();
 
         int topBarY = panelY + 28;
-        int contentTop = panelY + 64;
+        // Status line ~panelY+50; tabs below that; peer list below tabs (see peerListTop).
+        int tabY = panelY + 64;
         int listX = panelX + sideW + 10;
 
         muteBtn = addRenderableWidget(new VoiceButton(
@@ -101,7 +102,7 @@ public final class VoiceScreen extends Screen {
             sidebarChannels.add("lobby");
         }
 
-        int cy = contentTop;
+        int cy = panelY + 52;
         for (String ch : sidebarChannels) {
             boolean active = ch.equals(controller.getChannel());
             VoiceButton btn = addRenderableWidget(new VoiceButton(
@@ -137,7 +138,7 @@ public final class VoiceScreen extends Screen {
                 b -> minecraft.setScreen(new GroupEditorScreen(this))));
 
         channelTab = addRenderableWidget(new VoiceButton(
-                listX, contentTop - 2, 78, 16,
+                listX, tabY, 78, 16,
                 Component.literal("In Channel"),
                 VoiceButton.Style.GHOST,
                 b -> {
@@ -146,7 +147,7 @@ public final class VoiceScreen extends Screen {
                     rebuildPeers();
                 }));
         everyoneTab = addRenderableWidget(new VoiceButton(
-                listX + 82, contentTop - 2, 78, 16,
+                listX + 82, tabY, 78, 16,
                 Component.literal("Everyone"),
                 VoiceButton.Style.GHOST,
                 b -> {
@@ -167,6 +168,11 @@ public final class VoiceScreen extends Screen {
 
     private int groupButtonsStartY() {
         return panelY + 52 + sidebarChannels.size() * 20 + 4 + 10;
+    }
+
+    /** Peer rows start below the In Channel / Everyone tabs. */
+    private int peerListTop() {
+        return panelY + 64 + 16 + 4;
     }
 
     private void rebuildGroupButtons(int startY) {
@@ -417,7 +423,7 @@ public final class VoiceScreen extends Screen {
 
         int listX = panelX + sideW + 10;
         int listW = panelW - sideW - 20;
-        int py = panelY + 72;
+        int py = peerListTop();
         List<Map.Entry<String, SignalingClient.PeerInfo>> list = new ArrayList<>(signaling.peers().entrySet());
         list.sort((a, b) -> {
             String an = a.getValue().name == null ? "" : a.getValue().name;
