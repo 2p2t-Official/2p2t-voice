@@ -9,11 +9,13 @@ import net.fabricmc.loader.api.ModContainer;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -21,6 +23,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -42,6 +46,8 @@ public final class ModUpdater {
     private static volatile String latestAssetName = "";
     private static volatile String latestAssetUrl = "";
     private static volatile boolean updateAvailable = false;
+
+    private static final List<Path> pendingDelete = new ArrayList<>();
 
     private ModUpdater() {
     }
@@ -70,6 +76,43 @@ public final class ModUpdater {
                 .getModContainer(TwoptwotVoiceClient.MOD_ID)
                 .map(c -> c.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
+    }
+
+    /**
+     * Call on client init: remove leftover jars from a previous update
+     * ({@code *.jar.delete} / {@code *.jar.old}) and any duplicate twoptwotvoice jars
+     * that are not the currently loaded one.
+     */
+    public static void cleanupStaleJarsOnStartup() {
+        Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
+        if (!Files.isDirectory(mods)) {
+            return;
+        }
+        Path currentJar = currentLoadedJar();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(mods)) {
+            for (Path path : stream) {
+                if (!Files.isRegularFile(path)) {
+                    continue;
+                }
+                String name = path.getFileName().toString();
+                String lower = name.toLowerCase(Locale.ROOT);
+                if (lower.endsWith(".jar.delete") || lower.endsWith(".jar.old")
+                        || lower.endsWith(".jar.disabled")) {
+                    tryDelete(path);
+                    continue;
+                }
+                if (!isVoiceModJarName(lower)) {
+                    continue;
+                }
+                if (currentJar != null && pathsEqual(currentJar, path)) {
+                    continue;
+                }
+                if (!tryDelete(path)) {
+                    tryRenameAway(path);
+                }
+            }
+        } catch (IOException ignored) {
+        }
     }
 
     public static String minecraftVersion() {
@@ -132,13 +175,14 @@ public final class ModUpdater {
         CompletableFuture.runAsync(() -> {
             try {
                 Path installed = installJar(url, asset);
-                scheduleOldJarRemoval();
+                retireOtherVoiceJars(FabricLoader.getInstance().getGameDir().resolve("mods"), installed);
+                registerShutdownCleanup();
                 VoiceConfig config = TwoptwotVoiceClient.get().config();
                 config.lastUpdateMs = System.currentTimeMillis();
                 config.lastUpdateType = wasManual ? "manual" : "auto";
                 config.lastUpdateVersion = tag;
                 config.save();
-                statusLine = "Installed " + tag + " → restart Minecraft to load it.";
+                statusLine = "Installed " + tag + " → restart Minecraft (old jar removed on exit).";
                 updateAvailable = false;
             } catch (Exception e) {
                 statusLine = "Update failed: " + shortMsg(e);
@@ -257,21 +301,123 @@ public final class ModUpdater {
         return target;
     }
 
-    private static void scheduleOldJarRemoval() {
+    private static void retireOtherVoiceJars(Path mods, Path keep) {
+        synchronized (pendingDelete) {
+            pendingDelete.clear();
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(mods)) {
+                for (Path path : stream) {
+                    if (!Files.isRegularFile(path)) {
+                        continue;
+                    }
+                    if (pathsEqual(path, keep)) {
+                        continue;
+                    }
+                    String lower = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    if (!isVoiceModJarName(lower) && !lower.endsWith(".jar.delete")
+                            && !lower.endsWith(".jar.old") && !lower.endsWith(".jar.disabled")) {
+                        continue;
+                    }
+                    if (tryDelete(path)) {
+                        continue;
+                    }
+                    Path renamed = tryRenameAway(path);
+                    if (renamed != null) {
+                        pendingDelete.add(renamed);
+                    } else {
+                        pendingDelete.add(path);
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+            Path loaded = currentLoadedJar();
+            if (loaded != null && !pathsEqual(loaded, keep)) {
+                if (!tryDelete(loaded)) {
+                    Path renamed = tryRenameAway(loaded);
+                    pendingDelete.add(renamed != null ? renamed : loaded);
+                }
+            }
+        }
+    }
+
+    private static void registerShutdownCleanup() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            synchronized (pendingDelete) {
+                for (Path path : pendingDelete) {
+                    tryDelete(path);
+                }
+            }
+            Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
+            if (!Files.isDirectory(mods)) {
+                return;
+            }
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(mods)) {
+                for (Path path : stream) {
+                    String lower = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    if (lower.endsWith(".jar.delete") || lower.endsWith(".jar.old")
+                            || lower.endsWith(".jar.disabled")) {
+                        tryDelete(path);
+                    }
+                }
+            } catch (IOException ignored) {
+            }
+        }, "twoptwotvoice-jar-cleanup"));
+    }
+
+    private static Path currentLoadedJar() {
         Optional<ModContainer> mod = FabricLoader.getInstance().getModContainer(TwoptwotVoiceClient.MOD_ID);
         if (mod.isEmpty()) {
-            return;
+            return null;
         }
         for (Path path : mod.get().getOrigin().getPaths()) {
-            if (path == null || !Files.isRegularFile(path)) continue;
-            String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-            if (!name.endsWith(".jar")) continue;
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (Exception ignored) {
+            if (path != null && Files.isRegularFile(path)) {
+                String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                if (name.endsWith(".jar")) {
+                    return path.toAbsolutePath().normalize();
                 }
-            }, "twoptwotvoice-jar-cleanup"));
+            }
+        }
+        return null;
+    }
+
+    private static boolean isVoiceModJarName(String lowerFileName) {
+        return lowerFileName.startsWith("twoptwotvoice") && lowerFileName.endsWith(".jar");
+    }
+
+    private static boolean pathsEqual(Path a, Path b) {
+        try {
+            return a.toAbsolutePath().normalize().equals(b.toAbsolutePath().normalize());
+        } catch (Exception e) {
+            return a.equals(b);
+        }
+    }
+
+    private static boolean tryDelete(Path path) {
+        try {
+            return Files.deleteIfExists(path);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** Rename locked jar out of the way so Fabric won't load it next launch. */
+    private static Path tryRenameAway(Path path) {
+        try {
+            Path dest = path.resolveSibling(path.getFileName().toString() + ".delete");
+            int n = 0;
+            while (Files.exists(dest) && n < 20) {
+                dest = path.resolveSibling(path.getFileName().toString() + ".delete." + n);
+                n++;
+            }
+            Files.move(path, dest, StandardCopyOption.REPLACE_EXISTING);
+            return dest;
+        } catch (Exception e) {
+            try {
+                Path dest = path.resolveSibling(path.getFileName().toString() + ".old");
+                Files.move(path, dest, StandardCopyOption.REPLACE_EXISTING);
+                return dest;
+            } catch (Exception ignored) {
+                return null;
+            }
         }
     }
 

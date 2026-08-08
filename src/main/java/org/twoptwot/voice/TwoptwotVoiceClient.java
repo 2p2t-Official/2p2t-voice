@@ -29,6 +29,7 @@ public final class TwoptwotVoiceClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         instance = this;
+        ModUpdater.cleanupStaleJarsOnStartup();
         config = VoiceConfig.load();
         controller = new VoiceController(config);
         signaling = new SignalingClient(controller);
