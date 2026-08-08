@@ -1,0 +1,120 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+    id 'java'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+def webRtcNativeClassifiers = [
+        'windows-x86_64',
+        'linux-x86_64',
+        'linux-aarch64',
+        'macos-x86_64',
+        'macos-aarch64'
+]
+
+configurations {
+    webRtcNatives
+    embedWebRtc
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Embed webrtc-java classes into THIS mod jar (same classloader as System.load).
+    // Do NOT use include()/JiJ for webrtc — JNI natives bind per-classloader.
+    embedWebRtc("dev.onvoid.webrtc:webrtc-java:0.14.0")
+
+    webRtcNativeClassifiers.each { classifier ->
+        webRtcNatives("dev.onvoid.webrtc:webrtc-java:0.14.0:${classifier}")
+    }
+
+    implementation include("org.java-websocket:Java-WebSocket:1.5.7")
+    implementation include("com.google.code.gson:gson:2.11.0")
+}
+
+configurations.implementation.extendsFrom(configurations.embedWebRtc)
+
+loom {
+    mods {
+        "twoptwotvoice" {
+            sourceSet sourceSets.main
+            configuration configurations.embedWebRtc
+        }
+    }
+}
+
+tasks.register('extractWebRtcNatives', Copy) {
+    from({
+        configurations.webRtcNatives.files.collect { zipTree(it) }
+    }) {
+        include '**/*.dll', '**/*.so', '**/*.dylib'
+        includeEmptyDirs = false
+    }
+    into layout.buildDirectory.dir('generated/webrtc-natives')
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') {
+        expand version: project.version
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir layout.buildDirectory.dir('generated/webrtc-natives')
+        }
+    }
+}
+
+tasks.named('processResources').configure {
+    dependsOn tasks.named('extractWebRtcNatives')
+}
+
+tasks.named('jar', Jar).configure {
+    dependsOn tasks.named('extractWebRtcNatives')
+    from({
+        configurations.embedWebRtc.collect { zipTree(it) }
+    }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/MANIFEST.MF'
+        exclude 'fabric.mod.json'
+        exclude '**/*.dll', '**/*.so', '**/*.dylib'
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from('LICENSE') {
+        rename { "${it}_${project.base.archivesName.get()}" }
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name == 'sourcesJar' || it.name == 'remapSourcesJar' }.configureEach {
+        dependsOn tasks.named('extractWebRtcNatives')
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
