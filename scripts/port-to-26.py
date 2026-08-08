@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Mechanically port voice-mod sources from 1.21.11 APIs to Minecraft 26.x."""
 from __future__ import annotations
 
 import re
@@ -22,7 +21,6 @@ def rename_gui_graphics(text: str) -> str:
         "import net.minecraft.client.gui.GuiGraphics;",
         "import net.minecraft.client.gui.GuiGraphicsExtractor;",
     )
-    # Type usages only — avoid touching GuiGraphicsExtractor
     text = re.sub(r"(?<![A-Za-z])GuiGraphics(?!Extractor)", "GuiGraphicsExtractor", text)
     return text
 
@@ -56,11 +54,9 @@ def port(mc: str) -> None:
 
         text = rename_gui_graphics(text)
 
-        # Widget extract method (AbstractWidget)
         text = text.replace("protected void renderWidget(", "protected void extractWidgetRenderState(")
         text = text.replace("public void renderWidget(", "public void extractWidgetRenderState(")
 
-        # Screen extract methods only (not VoiceHud.render / renderForEditor / renderMain…)
         if path.name.endswith("Screen.java"):
             text = text.replace("public void renderBackground(", "public void extractBackground(")
             text = text.replace("public void render(", "public void extractRenderState(")
@@ -82,7 +78,6 @@ def port(mc: str) -> None:
             text = text.replace("client.setScreen(", "client.gui.setScreen(")
             text = re.sub(r"\bclient\.screen\b", "client.gui.screen()", text)
             text = re.sub(r"\bmc\.screen\b", "mc.gui.screen()", text)
-            # hideGui moved off Options in 26.2
             text = text.replace("mc.options.hideGui", "mc.gui.hud.isHidden()")
 
         if text != orig:

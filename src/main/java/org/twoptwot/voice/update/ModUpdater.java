@@ -78,11 +78,6 @@ public final class ModUpdater {
                 .orElse("unknown");
     }
 
-    /**
-     * Call on client init: remove leftover jars from a previous update
-     * ({@code *.jar.delete} / {@code *.jar.old}) and any duplicate twoptwotvoice jars
-     * that are not the currently loaded one.
-     */
     public static void cleanupStaleJarsOnStartup() {
         Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
         if (!Files.isDirectory(mods)) {
@@ -399,7 +394,6 @@ public final class ModUpdater {
         }
     }
 
-    /** Rename locked jar out of the way so Fabric won't load it next launch. */
     private static Path tryRenameAway(Path path) {
         try {
             Path dest = path.resolveSibling(path.getFileName().toString() + ".delete");

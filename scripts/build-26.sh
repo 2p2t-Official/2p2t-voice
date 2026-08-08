@@ -80,7 +80,6 @@ for entry in "${TARGETS[@]}"; do
   build_one "$mc" "$fapi" || true
 done
 
-# restore 1.21.11 baseline
 cat > gradle.properties <<EOF
 org.gradle.jvmargs=-Xmx3G
 org.gradle.parallel=true

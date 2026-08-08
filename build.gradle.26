@@ -40,7 +40,6 @@ dependencies {
         webRtcNatives("dev.onvoid.webrtc:webrtc-java:0.14.0:${classifier}")
     }
 
-    // Bundle non-native libs into the mod jar (JiJ when available; jar merge below as fallback).
     implementation include("org.java-websocket:Java-WebSocket:1.5.7")
     implementation include("com.google.code.gson:gson:2.11.0")
 }

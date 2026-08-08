@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Apply source shims for a target Minecraft version before compiling."""
 from __future__ import annotations
 
 import re
@@ -62,7 +61,6 @@ def patch_files(mc: str) -> None:
                 "import net.minecraft.client.input.MouseButtonEvent;\n",
                 "",
             )
-            # Screen / widget overrides used by this mod
             text = re.sub(
                 r"public boolean mouseClicked\(MouseButtonEvent event, boolean doubleClick\)",
                 "public boolean mouseClicked(double mouseX, double mouseY, int button)",
@@ -83,7 +81,6 @@ def patch_files(mc: str) -> None:
                 "public void onClick(double mouseX, double mouseY)",
                 text,
             )
-            # Common event accessors → locals (best-effort for our call sites)
             text = text.replace("event.button()", "button")
             text = text.replace("event.x()", "mouseX")
             text = text.replace("event.y()", "mouseY")

@@ -35,8 +35,6 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-    // Embed webrtc-java classes into THIS mod jar (same classloader as System.load).
-    // Do NOT use include()/JiJ for webrtc — JNI natives bind per-classloader.
     embedWebRtc("dev.onvoid.webrtc:webrtc-java:0.14.0")
 
     webRtcNativeClassifiers.each { classifier ->

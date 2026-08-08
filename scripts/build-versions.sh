@@ -12,7 +12,6 @@ fi
 LOADER="${LOADER_VERSION:-0.19.3}"
 LOOM="${LOOM_VERSION:-1.16.3}"
 
-# game|fabric_api
 TARGETS=(
   "1.21.11|0.141.6+1.21.11"
   "1.21.10|0.138.4+1.21.10"
@@ -89,7 +88,6 @@ for entry in "${TARGETS[@]}"; do
   build_one "$mc" "$fapi" || true
 done
 
-# restore baseline 1.21.11
 cat > gradle.properties <<EOF
 org.gradle.jvmargs=-Xmx3G
 org.gradle.parallel=true
