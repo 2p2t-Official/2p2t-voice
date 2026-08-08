@@ -27,6 +27,7 @@ def patch_files(mc: str) -> None:
     use_mouse_event = v >= ver_tuple("1.21.9")
     use_key_category = v >= ver_tuple("1.21.9")
     use_render_pipelines = v >= ver_tuple("1.21.6")
+    use_render_type_blit = (not use_render_pipelines) and v >= ver_tuple("1.21.2")
 
     for path in SRC.rglob("*.java"):
         text = path.read_text()
@@ -100,19 +101,31 @@ def patch_files(mc: str) -> None:
                 "super.mouseReleased(mouseX, mouseY, button)",
             )
 
-        if not use_render_pipelines and path.name == "VoiceHud.java":
+        if path.name == "VoiceHud.java" and not use_render_pipelines:
             text = text.replace(
                 "import net.minecraft.client.renderer.RenderPipelines;\n",
-                "",
+                "import net.minecraft.client.renderer.RenderType;\n"
+                if use_render_type_blit
+                else "",
             )
-            text = text.replace(
-                "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                "graphics.blit(skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-            )
-            text = text.replace(
-                "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                "graphics.blit(skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-            )
+            if use_render_type_blit:
+                text = text.replace(
+                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                    "graphics.blit(RenderType::guiTextured, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                )
+                text = text.replace(
+                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                    "graphics.blit(RenderType::guiTextured, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                )
+            else:
+                text = text.replace(
+                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                    "graphics.blit(skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                )
+                text = text.replace(
+                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                    "graphics.blit(skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                )
 
         if text != orig:
             path.write_text(text)
