@@ -147,19 +147,7 @@ public final class VoiceHud {
         if (TwoptwotVoiceClient.get().webRtc().isLocalSpeaking() && !controller.isDeafened()) {
             String self = controller.getName();
             if (self == null || self.isBlank()) {
-                if (mc.player != null) {
-                    try {
-                        self = mc.player.getGameProfile().name();
-                    } catch (Throwable ignored) {
-                        try {
-                            Object n = mc.player.getGameProfile().getClass()
-                                    .getMethod("getName").invoke(mc.player.getGameProfile());
-                            self = n == null ? null : n.toString();
-                        } catch (Throwable ignored2) {
-                            self = null;
-                        }
-                    }
-                }
+                self = profileName(mc.player != null ? mc.player.getGameProfile() : null);
                 if (self == null || self.isBlank()) {
                     self = "You";
                 }
@@ -363,6 +351,25 @@ public final class VoiceHud {
         }
         String path = id.getPath();
         return path != null && (path.contains("/steve") || path.endsWith("steve.png"));
+    }
+
+    private static String profileName(Object profile) {
+        if (profile == null) {
+            return null;
+        }
+        for (String method : new String[]{"name", "getName"}) {
+            try {
+                Object n = profile.getClass().getMethod(method).invoke(profile);
+                if (n != null) {
+                    String s = n.toString();
+                    if (!s.isBlank()) {
+                        return s;
+                    }
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return null;
     }
 
     private static UUID parseUuid(String uuidStr) {
