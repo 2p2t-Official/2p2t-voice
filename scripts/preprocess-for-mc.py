@@ -28,6 +28,10 @@ def patch_files(mc: str) -> None:
     use_key_category = v >= ver_tuple("1.21.9")
     use_render_pipelines = v >= ver_tuple("1.21.6")
     use_render_type_blit = (not use_render_pipelines) and v >= ver_tuple("1.21.2")
+    # PlayerSkin moved client.resources -> world.entity.player in 1.21.9
+    use_entity_player_skin = v >= ver_tuple("1.21.9")
+    # GameProfile.name() replaced getName() around the same cutover
+    use_profile_name = v >= ver_tuple("1.21.9")
 
     for path in SRC.rglob("*.java"):
         text = path.read_text()
@@ -101,31 +105,39 @@ def patch_files(mc: str) -> None:
                 "super.mouseReleased(mouseX, mouseY, button)",
             )
 
-        if path.name == "VoiceHud.java" and not use_render_pipelines:
-            text = text.replace(
-                "import net.minecraft.client.renderer.RenderPipelines;\n",
-                "import net.minecraft.client.renderer.RenderType;\n"
-                if use_render_type_blit
-                else "",
-            )
-            if use_render_type_blit:
+        if path.name == "VoiceHud.java":
+            if not use_entity_player_skin:
                 text = text.replace(
-                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                    "graphics.blit(RenderType::guiTextured, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                    "import net.minecraft.world.entity.player.PlayerSkin;\n",
+                    "import net.minecraft.client.resources.PlayerSkin;\n",
                 )
+            if not use_profile_name:
+                text = text.replace("profile.name()", "profile.getName()")
+            if not use_render_pipelines:
                 text = text.replace(
-                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                    "graphics.blit(RenderType::guiTextured, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                    "import net.minecraft.client.renderer.RenderPipelines;\n",
+                    "import net.minecraft.client.renderer.RenderType;\n"
+                    if use_render_type_blit
+                    else "",
                 )
-            else:
-                text = text.replace(
-                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                    "graphics.blit(skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                )
-                text = text.replace(
-                    "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                    "graphics.blit(skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                )
+                if use_render_type_blit:
+                    text = text.replace(
+                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                        "graphics.blit(RenderType::guiTextured, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                    )
+                    text = text.replace(
+                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                        "graphics.blit(RenderType::guiTextured, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                    )
+                else:
+                    text = text.replace(
+                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                        "graphics.blit(skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                    )
+                    text = text.replace(
+                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                        "graphics.blit(skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                    )
 
         if text != orig:
             path.write_text(text)

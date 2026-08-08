@@ -284,10 +284,8 @@ public final class VoiceHud {
             }
         }
 
-        if (uuid != null) {
-            return DefaultPlayerSkin.get(uuid);
-        }
-        return DefaultPlayerSkin.getDefaultSkin();
+        // Prefer UUID lookup; avoid getDefaultSkin() (missing on early 1.21.x).
+        return DefaultPlayerSkin.get(uuid != null ? uuid : new UUID(0L, 0L));
     }
 
     private static PlayerInfo findPlayerInfoByName(Minecraft mc, String name) {
