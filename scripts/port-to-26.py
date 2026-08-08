@@ -54,6 +54,17 @@ def port(mc: str) -> None:
 
         text = rename_gui_graphics(text)
 
+        # 26.x renamed player-face HUD helper + draw -> extractRenderState
+        text = text.replace(
+            "import net.minecraft.client.gui.components.PlayerFaceRenderer;",
+            "import net.minecraft.client.gui.components.PlayerFaceExtractor;",
+        )
+        text = text.replace("PlayerFaceRenderer", "PlayerFaceExtractor")
+        text = text.replace(
+            "PlayerFaceExtractor.draw(",
+            "PlayerFaceExtractor.extractRenderState(",
+        )
+
         text = text.replace("protected void renderWidget(", "protected void extractWidgetRenderState(")
         text = text.replace("public void renderWidget(", "public void extractWidgetRenderState(")
 
