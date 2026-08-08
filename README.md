@@ -33,7 +33,10 @@ Global, proximity, spawn (within 1000 blocks of 0,0), staff (permission gated), 
 
 ## Supported game versions
 
-Release assets cover **1.21 through 1.21.11**. Minecraft **26.x** (year-based versioning) builds are next; the client APIs diverge enough that they need a separate port.
+Release assets cover:
+
+- **1.21 through 1.21.11**
+- **26.1, 26.1.1, 26.1.2, 26.2** (year-based Minecraft versions; client needs Java 25)
 
 ## Building
 
@@ -41,13 +44,19 @@ Release assets cover **1.21 through 1.21.11**. Minecraft **26.x** (year-based ve
 ./gradlew build
 ```
 
-Versioned jars for the 1.21 line:
+1.21-line jars:
 
 ```bash
 ./scripts/build-versions.sh
 ```
 
-That script applies small source shims per target (for example `Identifier` vs `ResourceLocation`, mouse-event signatures) then restores `src/` from git. Artifacts land in `dist/` as `twoptwotvoice-<mod>+<minecraft>.jar`.
+26.x jars (uses `build.gradle.26` + `scripts/port-to-26.py`, then restores `src/`):
+
+```bash
+./scripts/build-26.sh
+```
+
+Artifacts land in `dist/` as `twoptwotvoice-<mod>+<minecraft>.jar`.
 
 ## License
 
