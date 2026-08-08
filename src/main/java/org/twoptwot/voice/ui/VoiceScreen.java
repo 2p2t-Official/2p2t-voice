@@ -53,8 +53,6 @@ public final class VoiceScreen extends Screen {
         signaling.refreshGroups();
 
         int topBarY = panelY + 28;
-        // Status line ~panelY+50; tabs below that; peer list below tabs (see peerListTop).
-        int tabY = panelY + 64;
         int listX = panelX + sideW + 10;
 
         muteBtn = addRenderableWidget(new VoiceButton(
@@ -137,8 +135,48 @@ public final class VoiceScreen extends Screen {
                 VoiceButton.Style.QUIET,
                 b -> minecraft.setScreen(new GroupEditorScreen(this))));
 
+        addRenderableWidget(new VoiceButton(
+                panelX + panelW - 78, panelY + panelH - 28, 64, 18,
+                Component.literal("Reconnect"),
+                VoiceButton.Style.QUIET,
+                b -> TwoptwotVoiceClient.get().pluginBridge().requestSession()));
+
+        // Peers first, then tabs, so tab widgets stay above the list for hit-testing/render.
+        rebuildPeers();
+        ensureRoomTabs(listX);
+    }
+
+    private int groupButtonsStartY() {
+        return panelY + 52 + sidebarChannels.size() * 20 + 4 + 10;
+    }
+
+    private int roomTabY() {
+        // Below status text (panelY+50) with a clear gap.
+        return panelY + 66;
+    }
+
+    private int roomTabH() {
+        return 18;
+    }
+
+    /** Peer rows start below the In Channel / Everyone tabs. */
+    private int peerListTop() {
+        return roomTabY() + roomTabH() + 6;
+    }
+
+    private void ensureRoomTabs(int listX) {
+        if (channelTab != null) {
+            removeWidget(channelTab);
+            channelTab = null;
+        }
+        if (everyoneTab != null) {
+            removeWidget(everyoneTab);
+            everyoneTab = null;
+        }
+        int tabY = roomTabY();
+        int tabH = roomTabH();
         channelTab = addRenderableWidget(new VoiceButton(
-                listX, tabY, 78, 16,
+                listX, tabY, 78, tabH,
                 Component.literal("In Channel"),
                 VoiceButton.Style.GHOST,
                 b -> {
@@ -147,7 +185,7 @@ public final class VoiceScreen extends Screen {
                     rebuildPeers();
                 }));
         everyoneTab = addRenderableWidget(new VoiceButton(
-                listX + 82, tabY, 78, 16,
+                listX + 82, tabY, 78, tabH,
                 Component.literal("Everyone"),
                 VoiceButton.Style.GHOST,
                 b -> {
@@ -156,23 +194,6 @@ public final class VoiceScreen extends Screen {
                     rebuildPeers();
                 }));
         refreshTabs();
-
-        addRenderableWidget(new VoiceButton(
-                panelX + panelW - 78, panelY + panelH - 28, 64, 18,
-                Component.literal("Reconnect"),
-                VoiceButton.Style.QUIET,
-                b -> TwoptwotVoiceClient.get().pluginBridge().requestSession()));
-
-        rebuildPeers();
-    }
-
-    private int groupButtonsStartY() {
-        return panelY + 52 + sidebarChannels.size() * 20 + 4 + 10;
-    }
-
-    /** Peer rows start below the In Channel / Everyone tabs. */
-    private int peerListTop() {
-        return panelY + 64 + 16 + 4;
     }
 
     private void rebuildGroupButtons(int startY) {
@@ -451,6 +472,10 @@ public final class VoiceScreen extends Screen {
             py += 28;
         }
         lastPeerFingerprint = fp.toString();
+        // Keep tabs above freshly rebuilt rows.
+        if (channelTab != null || everyoneTab != null) {
+            ensureRoomTabs(listX);
+        }
     }
 
     private String currentGroupFingerprint() {
