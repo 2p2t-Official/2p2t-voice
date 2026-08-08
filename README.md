@@ -31,19 +31,23 @@ The mod checks [GitHub Releases](https://github.com/WaffleStealz/2p2t-voice/rele
 
 Global, proximity, spawn (within 1000 blocks of 0,0), staff (permission gated), and player groups. Spawn range checks are enforced by the server as well as the client.
 
+## Supported game versions
+
+Release assets cover **1.21 through 1.21.11**. Minecraft **26.x** (year-based versioning) builds are next; the client APIs diverge enough that they need a separate port.
+
 ## Building
 
 ```bash
 ./gradlew build
 ```
 
-Versioned jars are produced with:
+Versioned jars for the 1.21 line:
 
 ```bash
 ./scripts/build-versions.sh
 ```
 
-Artifacts land in `dist/` as `twoptwotvoice-<mod>+<minecraft>.jar`.
+That script applies small source shims per target (for example `Identifier` vs `ResourceLocation`, mouse-event signatures) then restores `src/` from git. Artifacts land in `dist/` as `twoptwotvoice-<mod>+<minecraft>.jar`.
 
 ## License
 
