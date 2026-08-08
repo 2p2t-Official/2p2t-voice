@@ -53,7 +53,7 @@ public final class VoiceScreen extends Screen {
         signaling.refreshGroups();
 
         int topBarY = panelY + 28;
-        int contentTop = panelY + 52;
+        int contentTop = panelY + 64;
         int listX = panelX + sideW + 10;
 
         muteBtn = addRenderableWidget(new VoiceButton(
@@ -500,7 +500,13 @@ public final class VoiceScreen extends Screen {
         if (controller.isServerMuted()) {
             statusLine = "SERVER MUTED  ·  " + statusLine;
         }
-        graphics.drawString(font, statusLine, panelX + sideW + 10, panelY + 32, VoiceUi.TEXT_DIM, false);
+        int statusY = panelY + 50;
+        int statusX = panelX + sideW + 10;
+        int statusMax = panelW - sideW - 20;
+        while (statusLine.length() > 4 && font.width(statusLine) > statusMax) {
+            statusLine = statusLine.substring(0, statusLine.length() - 1);
+        }
+        graphics.drawString(font, statusLine, statusX, statusY, VoiceUi.TEXT_DIM, false);
 
         if (controller.config().hudDebug) {
             String meta = "peers " + controller.getPeerCount();

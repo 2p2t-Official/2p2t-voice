@@ -52,6 +52,13 @@ public final class PluginBridge {
         controller.setStatus("Requesting voice session...");
         JsonObject hello = new JsonObject();
         hello.addProperty("t", "hello");
+        String version = net.fabricmc.loader.api.FabricLoader.getInstance()
+                .getModContainer("twoptwotvoice")
+                .map(c -> c.getMetadata().getVersion().getFriendlyString())
+                .orElse("unknown");
+        hello.addProperty("v", version);
+        hello.addProperty("h", org.twoptwot.voice.ModIntegrity.jarSha256());
+        hello.addProperty("s", org.twoptwot.voice.ModIntegrity.signature(version));
         ClientPlayNetworking.send(new VoicePluginPayload(hello.toString()));
     }
 
@@ -61,7 +68,12 @@ public final class PluginBridge {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             String type = obj.has("t") ? obj.get("t").getAsString() : "";
             if ("error".equals(type)) {
-                controller.setStatus("Voice error: " + (obj.has("error") ? obj.get("error").getAsString() : "unknown"));
+                String err = obj.has("error") ? obj.get("error").getAsString() : "unknown";
+                if ("unofficial_mod".equals(err)) {
+                    controller.setStatus("Unofficial/modified voice mod — use a release jar from GitHub");
+                } else {
+                    controller.setStatus("Voice error: " + err);
+                }
                 return;
             }
             if (!"session".equals(type)) {

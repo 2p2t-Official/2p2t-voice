@@ -146,7 +146,31 @@ public final class VoiceHud {
         List<SpeakerRow> rows = new ArrayList<>();
         if (TwoptwotVoiceClient.get().webRtc().isLocalSpeaking() && !controller.isDeafened()) {
             String self = controller.getName();
-            rows.add(new SpeakerRow(self == null || self.isBlank() ? "You" : self, controller.getUuid()));
+            if (self == null || self.isBlank()) {
+                if (mc.player != null) {
+                    try {
+                        self = mc.player.getGameProfile().name();
+                    } catch (Throwable ignored) {
+                        try {
+                            Object n = mc.player.getGameProfile().getClass()
+                                    .getMethod("getName").invoke(mc.player.getGameProfile());
+                            self = n == null ? null : n.toString();
+                        } catch (Throwable ignored2) {
+                            self = null;
+                        }
+                    }
+                }
+                if (self == null || self.isBlank()) {
+                    self = "You";
+                }
+            }
+            String selfUuid = "";
+            if (mc.player != null) {
+                selfUuid = mc.player.getUUID().toString();
+            } else if (controller.getUuid() != null) {
+                selfUuid = controller.getUuid();
+            }
+            rows.add(new SpeakerRow(self, selfUuid));
         }
         String myChannel = controller.getChannel();
         for (SignalingClient.PeerInfo peer : signaling.peers().values()) {
@@ -234,6 +258,9 @@ public final class VoiceHud {
 
     private static void drawHead(GuiGraphics graphics, Minecraft mc, String uuidStr, int x, int y) {
         Identifier skin = resolveSkin(mc, uuidStr);
+        if (tryPlayerFaceRenderer(graphics, skin, x, y, 8)) {
+            return;
+        }
         try {
             graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);
             graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);
@@ -242,27 +269,62 @@ public final class VoiceHud {
         }
     }
 
-    private static Identifier resolveSkin(Minecraft mc, String uuidStr) {
-        UUID uuid = null;
+    private static boolean tryPlayerFaceRenderer(GuiGraphics graphics, Identifier skin, int x, int y, int size) {
         try {
-            if (uuidStr != null && !uuidStr.isBlank()) {
-                uuid = UUID.fromString(uuidStr);
+            Class<?> clazz = Class.forName("net.minecraft.client.gui.components.PlayerFaceRenderer");
+            try {
+                clazz.getMethod("draw", GuiGraphics.class, Identifier.class, int.class, int.class, int.class)
+                        .invoke(null, graphics, skin, x, y, size);
+                return true;
+            } catch (NoSuchMethodException ignored) {
             }
-        } catch (Exception ignored) {
+            try {
+                clazz.getMethod("draw", GuiGraphics.class, Identifier.class, int.class, int.class, int.class, int.class)
+                        .invoke(null, graphics, skin, x, y, size, -1);
+                return true;
+            } catch (NoSuchMethodException ignored) {
+            }
+        } catch (Throwable ignored) {
         }
+        return false;
+    }
+
+    private static Identifier resolveSkin(Minecraft mc, String uuidStr) {
+        UUID uuid = parseUuid(uuidStr);
+        if (uuid == null && mc.player != null) {
+            uuid = mc.player.getUUID();
+        }
+
+        if (mc.player != null && uuid != null && uuid.equals(mc.player.getUUID())) {
+            Identifier local = textureFromSkinObject(safeGetSkin(mc.player));
+            if (local != null && !isDefaultStevePath(local)) {
+                return local;
+            }
+            if (local != null) {
+                return local;
+            }
+        }
+
         if (uuid != null && mc.getConnection() != null) {
             PlayerInfo info = mc.getConnection().getPlayerInfo(uuid);
             if (info != null) {
-                Identifier fromInfo = textureFromSkinObject(invokeNoArg(info, "getSkin"));
+                Identifier fromInfo = textureFromSkinObject(safeGetSkin(info));
+                if (fromInfo != null && !isDefaultStevePath(fromInfo)) {
+                    return fromInfo;
+                }
                 if (fromInfo != null) {
                     return fromInfo;
                 }
-                Identifier legacy = asIdentifier(invokeNoArg(info, "getSkinLocation"));
-                if (legacy != null) {
-                    return legacy;
-                }
             }
         }
+
+        if (mc.player != null && (uuid == null || uuid.equals(mc.player.getUUID()))) {
+            Identifier local = textureFromSkinObject(safeGetSkin(mc.player));
+            if (local != null) {
+                return local;
+            }
+        }
+
         if (uuid != null) {
             try {
                 Object skin = DefaultPlayerSkin.class.getMethod("get", UUID.class).invoke(null, uuid);
@@ -284,15 +346,63 @@ public final class VoiceHud {
         return Identifier.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
     }
 
+    private static Object safeGetSkin(Object target) {
+        if (target == null) {
+            return null;
+        }
+        Object skin = invokeNoArg(target, "getSkin");
+        if (skin != null) {
+            return skin;
+        }
+        return invokeNoArg(target, "getSkinLocation");
+    }
+
+    private static boolean isDefaultStevePath(Identifier id) {
+        if (id == null) {
+            return true;
+        }
+        String path = id.getPath();
+        return path != null && (path.contains("/steve") || path.endsWith("steve.png"));
+    }
+
+    private static UUID parseUuid(String uuidStr) {
+        if (uuidStr == null || uuidStr.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(uuidStr);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     private static Identifier textureFromSkinObject(Object skin) {
         if (skin == null) {
             return null;
         }
         try {
             Object body = skin.getClass().getMethod("body").invoke(skin);
-            Identifier path = asIdentifier(invokeNoArg(body, "texturePath"));
-            if (path != null) {
-                return path;
+            Object path = body.getClass().getMethod("texturePath").invoke(body);
+            Identifier id = asIdentifier(path);
+            if (id != null) {
+                return id;
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            for (Class<?> iface : skin.getClass().getInterfaces()) {
+                // no-op; fall through
+            }
+            Object body = skin.getClass().getMethod("body").invoke(skin);
+            for (Class<?> iface : body.getClass().getInterfaces()) {
+                try {
+                    Object path = iface.getMethod("texturePath").invoke(body);
+                    Identifier id = asIdentifier(path);
+                    if (id != null) {
+                        return id;
+                    }
+                } catch (Throwable ignored) {
+                }
             }
         } catch (Throwable ignored) {
         }

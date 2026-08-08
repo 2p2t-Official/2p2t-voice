@@ -9,6 +9,10 @@ MOD_VERSION="$(grep '^mod_version=' gradle.properties | cut -d= -f2 || true)"
 if [[ -z "${MOD_VERSION}" ]]; then
   MOD_VERSION="$(grep '^mod.version' stonecutter.properties.toml 2>/dev/null | head -1 | cut -d\" -f2 || echo 1.1.0)"
 fi
+if [[ -z "${VOICE_INTEGRITY_SECRET:-}" && -f "$ROOT/.integrity-secret" ]]; then
+  VOICE_INTEGRITY_SECRET="$(tr -d '\n' < "$ROOT/.integrity-secret")"
+  export VOICE_INTEGRITY_SECRET
+fi
 LOADER="${LOADER_VERSION:-0.19.3}"
 LOOM="${LOOM_VERSION:-1.16.3}"
 

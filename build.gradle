@@ -67,8 +67,24 @@ tasks.register('extractWebRtcNatives', Copy) {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
+tasks.register('writeIntegrityProps') {
+    def outDir = layout.buildDirectory.dir('generated/integrity')
+    outputs.dir(outDir)
+    doLast {
+        def secret = System.getenv('VOICE_INTEGRITY_SECRET') ?: ''
+        def file = outDir.get().asFile.toPath().resolve('voice-integrity.properties').toFile()
+        file.parentFile.mkdirs()
+        if (secret.isBlank()) {
+            file.text = "# unsigned local/dev build\n"
+        } else {
+            file.text = "secret=${secret}\n"
+        }
+    }
+}
+
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'integritySecretPresent', (System.getenv('VOICE_INTEGRITY_SECRET') ?: '').isEmpty() ? '0' : '1'
     filesMatching('fabric.mod.json') {
         expand version: project.version
     }
@@ -78,12 +94,14 @@ sourceSets {
     main {
         resources {
             srcDir layout.buildDirectory.dir('generated/webrtc-natives')
+            srcDir layout.buildDirectory.dir('generated/integrity')
         }
     }
 }
 
 tasks.named('processResources').configure {
     dependsOn tasks.named('extractWebRtcNatives')
+    dependsOn tasks.named('writeIntegrityProps')
 }
 
 tasks.named('jar', Jar).configure {

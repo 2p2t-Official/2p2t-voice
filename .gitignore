@@ -8,3 +8,5 @@ out/
 .vscode/
 *.log
 *.download
+.integrity-secret
+src/main/resources/voice-integrity.properties

@@ -16,6 +16,8 @@ Fabric client mod for [2p2t](https://2p2t.org) proximity and channel voice chat.
 3. Install Fabric API for that same version.
 4. Join the server and open the voice menu with the keybind (default: check Controls → 2p2t Voice).
 
+Most players should just download a jar from [Releases](https://github.com/WaffleStealz/2p2t-voice/releases). Building from source is optional.
+
 ## Updates
 
 The mod checks [GitHub Releases](https://github.com/WaffleStealz/2p2t-voice/releases) for a jar built for your Minecraft version.
@@ -35,35 +37,51 @@ Release assets cover:
 - **1.21 through 1.21.11**
 - **26.1, 26.1.1, 26.1.2, 26.2**
 
-## Building
+## Building one version
+
+If you want to compile the mod yourself, build **only the Minecraft version you play**. You do not need every jar.
+
+**Needs**
+
+- Git
+- JDK **21** for any `1.21.x` build
+- JDK **25** for any `26.x` build
+
+**Steps**
 
 ```bash
-./gradlew build
+git clone https://github.com/WaffleStealz/2p2t-voice.git
+cd 2p2t-voice
+./scripts/build-one.sh 1.21.11
 ```
 
-1.21-line jars:
+Replace `1.21.11` with your game version (`1.21.4`, `26.2`, etc.).
+
+The finished jar is written to:
+
+`dist/twoptwotvoice-<mod>+<minecraft>.jar`
+
+Copy that into `.minecraft/mods` (with matching Fabric API).
+
+Examples:
+
+```bash
+./scripts/build-one.sh 1.21.8
+./scripts/build-one.sh 26.2
+```
+
+### Optional (maintainers)
+
+Build every supported version, or publish GitHub Releases:
 
 ```bash
 ./scripts/build-versions.sh
-```
-
-26.x jars (uses `build.gradle.26` + `scripts/port-to-26.py`, then restores `src/`):
-
-```bash
 ./scripts/build-26.sh
-```
-
-Artifacts land in `dist/` as `twoptwotvoice-<mod>+<minecraft>.jar`.
-
-Publish a GitHub release with **every** supported jar (required; do not upload a single target):
-
-```bash
-# working tree must be clean; mod_version in gradle.properties is the tag (v1.2.1 → tag v1.2.1)
 ./scripts/release.sh
 ```
-
-Options: `--skip-build` (upload existing `dist/` jars only), `--skip-upload` (build/verify only).
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+Official play on `2p2t.org` only accepts release builds published by the project. Modified or self-signed jars will not get a voice session on the live server.

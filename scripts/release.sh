@@ -38,6 +38,14 @@ if [[ -z "${MOD_VERSION}" ]]; then
   echo "mod_version missing from gradle.properties" >&2
   exit 1
 fi
+if [[ -z "${VOICE_INTEGRITY_SECRET:-}" && -f "$ROOT/.integrity-secret" ]]; then
+  VOICE_INTEGRITY_SECRET="$(tr -d '\n' < "$ROOT/.integrity-secret")"
+  export VOICE_INTEGRITY_SECRET
+fi
+if [[ -z "${VOICE_INTEGRITY_SECRET:-}" ]]; then
+  echo "VOICE_INTEGRITY_SECRET (or .integrity-secret) is required for official releases." >&2
+  exit 1
+fi
 TAG="v${MOD_VERSION}"
 
 EXPECTED=(
@@ -91,6 +99,27 @@ fi
 
 echo "All ${#jars[@]} release jars present for ${MOD_VERSION}."
 
+HASH_FILE="$DIST/voice-allowed-hashes-${MOD_VERSION}.txt"
+: > "$HASH_FILE"
+echo "# twoptwotvoice ${MOD_VERSION}" >> "$HASH_FILE"
+for jar in "${jars[@]}"; do
+  python3 "$ROOT/scripts/jar-content-hash.py" "$jar" | awk '{print $1}' >> "$HASH_FILE"
+done
+echo "Wrote $HASH_FILE"
+
+SERVER_HASHES="${VOICE_ALLOWED_HASHES_FILE:-/var/lib/pterodactyl/volumes/4f8f956f-544b-4411-baad-7b12821c4e96/plugins/2p2tCore/voice-allowed-hashes.txt}"
+if [[ -n "$SERVER_HASHES" ]]; then
+  mkdir -p "$(dirname "$SERVER_HASHES")"
+  touch "$SERVER_HASHES"
+  while read -r hash; do
+    [[ "$hash" =~ ^[0-9a-f]{64}$ ]] || continue
+    if ! grep -qxF "$hash" "$SERVER_HASHES"; then
+      echo "$hash" >> "$SERVER_HASHES"
+    fi
+  done < <(grep -E '^[0-9a-f]{64}$' "$HASH_FILE")
+  echo "Updated server allowlist: $SERVER_HASHES"
+fi
+
 if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
   echo "Skipping upload (--skip-upload)."
   printf '%s\n' "${jars[@]}"
@@ -100,10 +129,7 @@ fi
 if [[ -z "$NOTES" ]]; then
   NOTES="2p2t Voice ${MOD_VERSION}
 
-Full Minecraft matrix (same set as v1.1.0):
-$(printf -- '- %s\n' "${EXPECTED[@]}")
-
-Install the jar matching your game version."
+Grab the jar for your Minecraft version."
 fi
 
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
