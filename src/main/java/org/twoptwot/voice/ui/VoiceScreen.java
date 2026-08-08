@@ -57,7 +57,7 @@ public final class VoiceScreen extends Screen {
         int listX = panelX + sideW + 10;
 
         muteBtn = addRenderableWidget(new VoiceButton(
-                panelX + panelW - 220, topBarY, 56, 18,
+                panelX + panelW - (controller.isAdmin() ? 288 : 220), topBarY, 56, 18,
                 Component.literal(controller.isMuted() ? "Unmute" : "Mute"),
                 controller.isMuted() ? VoiceButton.Style.DANGER : VoiceButton.Style.GHOST,
                 b -> {
@@ -65,7 +65,7 @@ public final class VoiceScreen extends Screen {
                     refreshControls();
                 }));
         deafBtn = addRenderableWidget(new VoiceButton(
-                panelX + panelW - 160, topBarY, 56, 18,
+                panelX + panelW - (controller.isAdmin() ? 228 : 160), topBarY, 56, 18,
                 Component.literal(controller.isDeafened() ? "Undeafen" : "Deafen"),
                 controller.isDeafened() ? VoiceButton.Style.DANGER : VoiceButton.Style.GHOST,
                 b -> {
@@ -77,6 +77,13 @@ public final class VoiceScreen extends Screen {
                 Component.literal("Settings"),
                 VoiceButton.Style.QUIET,
                 b -> minecraft.setScreen(new VoiceSettingsScreen(this))));
+        if (controller.isAdmin()) {
+            addRenderableWidget(new VoiceButton(
+                    panelX + panelW - 168, topBarY, 64, 18,
+                    Component.literal("Admin"),
+                    VoiceButton.Style.PRIMARY,
+                    b -> minecraft.setScreen(new VoiceAdminScreen(this))));
+        }
         addRenderableWidget(new VoiceButton(
                 panelX + panelW - 22, panelY + 4, 16, 16,
                 Component.literal("X"),
@@ -179,6 +186,51 @@ public final class VoiceScreen extends Screen {
             cy += 20;
         }
         lastGroupFingerprint = currentGroupFingerprint();
+    }
+
+    private void openInviteMenu(SignalingClient.PeerInfo peer) {
+        closeContextMenu();
+        List<SignalingClient.GroupInfo> inviteGroups = new ArrayList<>();
+        for (SignalingClient.GroupInfo group : signaling.groups()) {
+            if (group.isOwner || group.joined || group.channelId().equals(controller.getChannel())) {
+                inviteGroups.add(group);
+            }
+        }
+        if (inviteGroups.isEmpty()) {
+            controller.setStatus("Join or create a group first to invite.");
+            return;
+        }
+        int menuW = 120;
+        int itemH = 16;
+        int menuX = Math.min(width - menuW - 4, panelX + sideW + 40);
+        int menuY = panelY + 72;
+        int y = menuY;
+        for (SignalingClient.GroupInfo group : inviteGroups) {
+            VoiceButton btn = addRenderableWidget(new VoiceButton(
+                    menuX, y, menuW, itemH,
+                    Component.literal("→ " + group.name),
+                    VoiceButton.Style.GHOST,
+                    b -> {
+                        closeContextMenu();
+                        signaling.inviteToGroup(group.id, peer.uuid, () -> {
+                            if (minecraft != null) {
+                                minecraft.execute(() -> controller.setStatus("Invited " + peer.name + " to " + group.name));
+                            }
+                        }, err -> {
+                            if (minecraft != null) {
+                                minecraft.execute(() -> controller.setStatus("Invite failed: " + err));
+                            }
+                        });
+                    }));
+            contextMenu.add(btn);
+            y += itemH + 2;
+        }
+        VoiceButton cancel = addRenderableWidget(new VoiceButton(
+                menuX, y, menuW, itemH,
+                Component.literal("Cancel"),
+                VoiceButton.Style.QUIET,
+                b -> closeContextMenu()));
+        contextMenu.add(cancel);
     }
 
     private void closeContextMenu() {
@@ -387,7 +439,7 @@ public final class VoiceScreen extends Screen {
             }
             PeerRowWidget row = addRenderableWidget(new PeerRowWidget(
                     listX, py, listW, 26, peer, controller, () -> {
-            }));
+            }, this::openInviteMenu));
             peerRows.add(row);
             fp.append('|').append(peer.uuid);
             py += 28;

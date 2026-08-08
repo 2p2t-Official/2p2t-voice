@@ -55,6 +55,15 @@ Release assets cover:
 
 Artifacts land in `dist/` as `twoptwotvoice-<mod>+<minecraft>.jar`.
 
+Publish a GitHub release with **every** supported jar (required; do not upload a single target):
+
+```bash
+# working tree must be clean; mod_version in gradle.properties is the tag (v1.2.1 → tag v1.2.1)
+./scripts/release.sh
+```
+
+Options: `--skip-build` (upload existing `dist/` jars only), `--skip-upload` (build/verify only).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

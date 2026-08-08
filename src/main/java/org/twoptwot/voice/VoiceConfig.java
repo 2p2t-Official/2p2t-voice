@@ -57,6 +57,7 @@ public final class VoiceConfig {
     public int speakingHudY = -1;
     public String inputDeviceId = "";
     public String outputDeviceId = "";
+    public boolean noiseSuppression = true;
     public boolean autoUpdate = true;
     public long lastUpdateCheckMs = 0L;
     public long lastUpdateMs = 0L;

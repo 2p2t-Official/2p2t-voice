@@ -3,6 +3,11 @@ package org.twoptwot.voice.ui;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.resources.DefaultPlayerSkin;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.PlayerSkin;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
 import org.twoptwot.voice.audio.VoiceController;
@@ -10,6 +15,7 @@ import org.twoptwot.voice.net.SignalingClient;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public final class VoiceHud {
 
@@ -17,10 +23,19 @@ public final class VoiceHud {
     private final SignalingClient signaling;
     private float pulse;
 
-    
     private int mainX, mainY, mainW, mainH;
     private int speakX, speakY, speakW, speakH;
     private boolean speakVisible;
+
+    private static final class SpeakerRow {
+        final String name;
+        final String uuid;
+
+        SpeakerRow(String name, String uuid) {
+            this.name = name;
+            this.uuid = uuid;
+        }
+    }
 
     public VoiceHud(VoiceController controller, SignalingClient signaling) {
         this.controller = controller;
@@ -42,7 +57,7 @@ public final class VoiceHud {
         if (mc.options.hideGui || mc.player == null) {
             return;
         }
-        
+
         boolean movePreview = mc.screen instanceof HudMoveScreen;
         if (!controller.config().hudEnabled && !movePreview) {
             return;
@@ -57,7 +72,6 @@ public final class VoiceHud {
         }
     }
 
-    
     public void renderForEditor(GuiGraphics graphics) {
         Minecraft mc = Minecraft.getInstance();
         renderMain(graphics, mc, true);
@@ -130,10 +144,10 @@ public final class VoiceHud {
     }
 
     private void renderSpeakingList(GuiGraphics graphics, Minecraft mc, boolean editor) {
-        List<String> names = new ArrayList<>();
+        List<SpeakerRow> rows = new ArrayList<>();
         if (TwoptwotVoiceClient.get().webRtc().isLocalSpeaking() && !controller.isDeafened()) {
             String self = controller.getName();
-            names.add(self == null || self.isBlank() ? "You" : self);
+            rows.add(new SpeakerRow(self == null || self.isBlank() ? "You" : self, controller.getUuid()));
         }
         String myChannel = controller.getChannel();
         for (SignalingClient.PeerInfo peer : signaling.peers().values()) {
@@ -147,30 +161,38 @@ public final class VoiceHud {
             if (controller.getName() != null && controller.getName().equalsIgnoreCase(name)) {
                 continue;
             }
-            if (!names.contains(name)) {
-                names.add(name);
+            boolean exists = false;
+            for (SpeakerRow row : rows) {
+                if (row.name.equalsIgnoreCase(name)) {
+                    exists = true;
+                    break;
+                }
             }
-            if (names.size() >= 6) {
+            if (!exists) {
+                rows.add(new SpeakerRow(name, peer.uuid));
+            }
+            if (rows.size() >= 6) {
                 break;
             }
         }
-        if (names.isEmpty() && !editor) {
+        if (rows.isEmpty() && !editor) {
             speakVisible = false;
             return;
         }
-        if (names.isEmpty()) {
-            names.add("(nobody)");
+        if (rows.isEmpty()) {
+            rows.add(new SpeakerRow("(nobody)", ""));
         }
 
-        int rowH = 12;
+        int rowH = 14;
         int pad = 5;
+        int head = 10;
         int maxNameW = 0;
-        for (String name : names) {
-            maxNameW = Math.max(maxNameW, mc.font.width(name));
+        for (SpeakerRow row : rows) {
+            maxNameW = Math.max(maxNameW, mc.font.width(row.name));
         }
         String header = "Speaking";
-        speakW = Math.max(mc.font.width(header), maxNameW) + pad * 2 + 10;
-        speakH = pad + 10 + names.size() * rowH + 2;
+        speakW = Math.max(mc.font.width(header) + 8, maxNameW + head + 10) + pad * 2;
+        speakH = pad + 12 + rows.size() * rowH + 3;
 
         VoiceConfig cfg = controller.config();
         int screenW = mc.getWindow().getGuiScaledWidth();
@@ -191,21 +213,64 @@ public final class VoiceHud {
         int w = speakW;
         int h = speakH;
 
-        graphics.fill(x, y, x + w, y + h, VoiceUi.BG_SHELL);
-        graphics.fill(x, y, x + w, y + 1, VoiceUi.BORDER);
+        graphics.fill(x, y, x + w, y + h, 0xF012161C);
+        graphics.fill(x, y, x + w, y + 1, VoiceUi.SPEAK);
         graphics.fill(x, y + h - 1, x + w, y + h, VoiceUi.BORDER_SOFT);
         graphics.fill(x, y, x + 2, y + h, VoiceUi.SPEAK);
+        int pulseBar = (VoiceUi.pulseAlpha(pulse) & 0xFF000000) | (VoiceUi.SPEAK & 0x00FFFFFF);
+        graphics.fill(x + 2, y, x + 3, y + h, pulseBar);
         if (editor) {
-            graphics.fill(x, y, x + w, y + 1, VoiceUi.SPEAK);
-            graphics.fill(x, y + h - 1, x + w, y + h, VoiceUi.SPEAK);
+            graphics.fill(x, y, x + w, y + 1, VoiceUi.GOLD);
+            graphics.fill(x, y + h - 1, x + w, y + h, VoiceUi.GOLD);
         }
 
-        graphics.drawString(mc.font, header, x + pad + 8, y + 3, VoiceUi.TEXT_DIM, false);
-        int ty = y + 13;
-        for (String name : names) {
-            VoiceUi.statusDot(graphics, x + pad, ty + 1, VoiceUi.SPEAK);
-            graphics.drawString(mc.font, name, x + pad + 8, ty, VoiceUi.TEXT, false);
+        graphics.drawString(mc.font, header, x + pad + 4, y + 4, VoiceUi.TEXT_DIM, false);
+        int ty = y + 15;
+        for (SpeakerRow row : rows) {
+            drawHead(graphics, mc, row.uuid, x + pad, ty - 1);
+            graphics.drawString(mc.font, row.name, x + pad + head + 4, ty, VoiceUi.TEXT, false);
             ty += rowH;
+        }
+    }
+
+    private static void drawHead(GuiGraphics graphics, Minecraft mc, String uuidStr, int x, int y) {
+        Identifier skin = resolveSkin(mc, uuidStr);
+        try {
+            graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);
+            graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);
+        } catch (Throwable t) {
+            graphics.fill(x, y, x + 8, y + 8, VoiceUi.ACCENT);
+        }
+    }
+
+    private static Identifier resolveSkin(Minecraft mc, String uuidStr) {
+        UUID uuid = null;
+        try {
+            if (uuidStr != null && !uuidStr.isBlank()) {
+                uuid = UUID.fromString(uuidStr);
+            }
+        } catch (Exception ignored) {
+        }
+        if (uuid != null && mc.getConnection() != null) {
+            PlayerInfo info = mc.getConnection().getPlayerInfo(uuid);
+            if (info != null) {
+                try {
+                    PlayerSkin skin = info.getSkin();
+                    return skin.body().texturePath();
+                } catch (Throwable ignored) {
+                }
+            }
+        }
+        try {
+            if (uuid != null) {
+                return DefaultPlayerSkin.get(uuid).body().texturePath();
+            }
+        } catch (Throwable ignored) {
+        }
+        try {
+            return DefaultPlayerSkin.getDefaultTexture();
+        } catch (Throwable ignored) {
+            return Identifier.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
         }
     }
 

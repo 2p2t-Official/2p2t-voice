@@ -14,14 +14,22 @@ public final class PeerRowWidget extends AbstractWidget {
     private final SignalingClient.PeerInfo peer;
     private final VoiceController controller;
     private final Runnable onChanged;
+    private final java.util.function.Consumer<SignalingClient.PeerInfo> onInvite;
     private float anim;
 
     public PeerRowWidget(int x, int y, int w, int h, SignalingClient.PeerInfo peer,
                          VoiceController controller, Runnable onChanged) {
+        this(x, y, w, h, peer, controller, onChanged, null);
+    }
+
+    public PeerRowWidget(int x, int y, int w, int h, SignalingClient.PeerInfo peer,
+                         VoiceController controller, Runnable onChanged,
+                         java.util.function.Consumer<SignalingClient.PeerInfo> onInvite) {
         super(x, y, w, h, Component.literal(peer.name == null ? "?" : peer.name));
         this.peer = peer;
         this.controller = controller;
         this.onChanged = onChanged;
+        this.onInvite = onInvite;
     }
 
     public void tickAnim(float t) {
@@ -37,6 +45,7 @@ public final class PeerRowWidget extends AbstractWidget {
         int localX = (int) event.x() - getX();
         int blockW = 52;
         int volW = 44;
+        int inviteW = 40;
         if (localX >= width - blockW) {
             peer.blocked = !peer.blocked;
             TwoptwotVoiceClient.get().webRtc().applyPeerVolume(peer.uuid, peer.effectiveVolume(controller));
@@ -45,7 +54,6 @@ public final class PeerRowWidget extends AbstractWidget {
             return;
         }
         if (localX >= width - blockW - volW) {
-            
             float lv = peer.localVolume;
             if (lv >= 1.4f) {
                 peer.localVolume = 1f;
@@ -58,6 +66,11 @@ public final class PeerRowWidget extends AbstractWidget {
             }
             TwoptwotVoiceClient.get().webRtc().applyPeerVolume(peer.uuid, peer.effectiveVolume(controller));
             onChanged.run();
+            playDownSound(net.minecraft.client.Minecraft.getInstance().getSoundManager());
+            return;
+        }
+        if (onInvite != null && localX >= width - blockW - volW - inviteW) {
+            onInvite.accept(peer);
             playDownSound(net.minecraft.client.Minecraft.getInstance().getSoundManager());
         }
     }
@@ -99,8 +112,15 @@ public final class PeerRowWidget extends AbstractWidget {
 
         int blockW = 52;
         int volW = 44;
+        int inviteW = onInvite != null ? 40 : 0;
+        int inviteX = getX() + width - blockW - volW - inviteW;
         int volX = getX() + width - blockW - volW;
         int blockX = getX() + width - blockW;
+
+        if (onInvite != null) {
+            g.fill(inviteX + 2, getY() + 4, inviteX + inviteW - 2, getY() + height - 4, VoiceUi.BG_CHIP);
+            g.drawCenteredString(font, "Invite", inviteX + inviteW / 2, getY() + (height - 8) / 2, VoiceUi.GOLD);
+        }
 
         int volPct = Math.round(peer.localVolume * 100f);
         String volLabel = volPct + "%";

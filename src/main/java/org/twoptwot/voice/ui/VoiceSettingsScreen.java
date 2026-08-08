@@ -7,17 +7,22 @@ import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
 import org.twoptwot.voice.audio.VoiceController;
 import org.twoptwot.voice.update.ModUpdater;
+import org.twoptwot.voice.webrtc.AudioDevices;
+
+import java.util.List;
 
 public final class VoiceSettingsScreen extends Screen {
 
     private final Screen parent;
     private final VoiceController controller = TwoptwotVoiceClient.get().controller();
     private final VoiceConfig config = controller.config();
+    private List<AudioDevices.Device> inputs = AudioDevices.listInputs();
+    private List<AudioDevices.Device> outputs = AudioDevices.listOutputs();
 
     private int panelX;
     private int panelY;
-    private int panelW = 300;
-    private int panelH = 470;
+    private int panelW = 320;
+    private int panelH = 520;
 
     public VoiceSettingsScreen(Screen parent) {
         super(Component.literal("Voice Settings"));
@@ -26,8 +31,10 @@ public final class VoiceSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        panelW = Math.min(320, width - 40);
-        panelH = Math.min(470, height - 24);
+        inputs = AudioDevices.listInputs();
+        outputs = AudioDevices.listOutputs();
+        panelW = Math.min(340, width - 40);
+        panelH = Math.min(520, height - 20);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
 
@@ -45,17 +52,54 @@ public final class VoiceSettingsScreen extends Screen {
                     b.setMessage(Component.literal(
                             "Mic: " + ("ptt".equalsIgnoreCase(config.mode) ? "Push to Talk" : "Open Mic")));
                 }));
+        y += 26;
+
+        addRenderableWidget(new VoiceButton(
+                cx, y, cw, 20,
+                Component.literal("Input: " + AudioDevices.labelFor(inputs, config.inputDeviceId)),
+                VoiceButton.Style.GHOST,
+                b -> {
+                    config.inputDeviceId = AudioDevices.cycleId(inputs, config.inputDeviceId);
+                    config.save();
+                    TwoptwotVoiceClient.get().webRtc().applyDeviceSettings();
+                    b.setMessage(Component.literal("Input: " + AudioDevices.labelFor(inputs, config.inputDeviceId)));
+                }));
+        y += 24;
+
+        addRenderableWidget(new VoiceButton(
+                cx, y, cw, 20,
+                Component.literal("Output: " + AudioDevices.labelFor(outputs, config.outputDeviceId)),
+                VoiceButton.Style.GHOST,
+                b -> {
+                    config.outputDeviceId = AudioDevices.cycleId(outputs, config.outputDeviceId);
+                    config.save();
+                    TwoptwotVoiceClient.get().webRtc().applyDeviceSettings();
+                    b.setMessage(Component.literal("Output: " + AudioDevices.labelFor(outputs, config.outputDeviceId)));
+                }));
+        y += 24;
+
+        addRenderableWidget(new VoiceButton(
+                cx, y, cw, 20,
+                Component.literal("Noise Suppression: " + (config.noiseSuppression ? "ON" : "OFF")),
+                config.noiseSuppression ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
+                b -> {
+                    config.noiseSuppression = !config.noiseSuppression;
+                    config.save();
+                    TwoptwotVoiceClient.get().webRtc().applyDeviceSettings();
+                    b.setMessage(Component.literal("Noise Suppression: " + (config.noiseSuppression ? "ON" : "OFF")));
+                    b.setStyle(config.noiseSuppression ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
+                }));
         y += 28;
 
         addRenderableWidget(new VoiceSlider(cx, y, cw, 28, "Proximity",
                 config.proximityRange, 4, 48, false,
                 v -> controller.setProximityRange((int) Math.round(v))));
-        y += 34;
+        y += 32;
 
         addRenderableWidget(new VoiceSlider(cx, y, cw, 28, "Master Volume",
                 config.masterVolume, 0, 2, true,
                 v -> controller.setMasterVolume((float) v)));
-        y += 34;
+        y += 32;
 
         addRenderableWidget(new VoiceSlider(cx, y, cw, 28, "Mic Volume",
                 config.micVolume, 0, 2, true,
@@ -64,7 +108,7 @@ public final class VoiceSettingsScreen extends Screen {
                     config.save();
                     TwoptwotVoiceClient.get().webRtc().syncLocalMic();
                 }));
-        y += 34;
+        y += 32;
 
         addRenderableWidget(new VoiceSlider(cx, y, cw, 28, "Mic Sensitivity",
                 config.sensitivity01(), 0, 1, true,
@@ -72,7 +116,7 @@ public final class VoiceSettingsScreen extends Screen {
                     config.setSensitivity01((float) v);
                     TwoptwotVoiceClient.get().webRtc().syncLocalMic();
                 }));
-        y += 34;
+        y += 32;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw / 2 - 4, 20,
@@ -94,7 +138,7 @@ public final class VoiceSettingsScreen extends Screen {
                     b.setMessage(Component.literal("HUD: " + (config.hudEnabled ? "ON" : "OFF")));
                     b.setStyle(config.hudEnabled ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
                 }));
-        y += 26;
+        y += 24;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw / 2 - 4, 20,
@@ -116,14 +160,14 @@ public final class VoiceSettingsScreen extends Screen {
                     b.setMessage(Component.literal("Debug: " + (config.hudDebug ? "ON" : "OFF")));
                     b.setStyle(config.hudDebug ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
                 }));
-        y += 26;
+        y += 24;
 
         addRenderableWidget(new VoiceButton(
-                cx, y, cw, 22,
+                cx, y, cw, 20,
                 Component.literal("Move HUD…"),
                 VoiceButton.Style.PRIMARY,
                 b -> minecraft.setScreen(new HudMoveScreen(this))));
-        y += 28;
+        y += 24;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw, 20,
@@ -135,7 +179,7 @@ public final class VoiceSettingsScreen extends Screen {
                     b.setMessage(Component.literal("Auto-update: " + (config.autoUpdate ? "ON" : "OFF")));
                     b.setStyle(config.autoUpdate ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
                 }));
-        y += 24;
+        y += 22;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw / 2 - 4, 20,
@@ -154,7 +198,7 @@ public final class VoiceSettingsScreen extends Screen {
                         ModUpdater.checkAsync(true);
                     }
                 }));
-        y += 28;
+        y += 26;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw / 2 - 4, 22,
@@ -185,21 +229,12 @@ public final class VoiceSettingsScreen extends Screen {
         VoiceUi.accentBar(graphics, panelX + 1, panelY + 1, panelW - 2);
         graphics.drawString(font, "Voice Settings", panelX + 14, panelY + 10, VoiceUi.TEXT, false);
 
-        int foot = panelY + panelH - 54;
+        int foot = panelY + panelH - 40;
         graphics.drawString(font, "Installed: " + ModUpdater.installedVersion()
                         + "  ·  MC " + ModUpdater.minecraftVersion(),
                 panelX + 14, foot, VoiceUi.TEXT_FAINT, false);
-        graphics.drawString(font, "Last update: " + ModUpdater.formatTimestamp(config.lastUpdateMs)
-                        + (config.lastUpdateType == null || config.lastUpdateType.isBlank()
-                        ? ""
-                        : " (" + config.lastUpdateType + ")"),
-                panelX + 14, foot + 10, VoiceUi.TEXT_FAINT, false);
-        if (config.lastUpdateVersion != null && !config.lastUpdateVersion.isBlank()) {
-            graphics.drawString(font, "Updated to: " + config.lastUpdateVersion,
-                    panelX + 14, foot + 20, VoiceUi.TEXT_FAINT, false);
-        }
         graphics.drawString(font, ModUpdater.statusLine(),
-                panelX + 14, foot + 32, VoiceUi.TEXT_DIM, false);
+                panelX + 14, foot + 12, VoiceUi.TEXT_DIM, false);
 
         super.render(graphics, mouseX, mouseY, partialTick);
     }

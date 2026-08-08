@@ -98,6 +98,9 @@ public final class WebRtcEngine {
             factory = new PeerConnectionFactory(module);
             javaSound = new JavaSoundAudio();
             javaSound.setMicGain(controller.config().micVolume);
+            javaSound.setInputDeviceId(controller.config().inputDeviceId);
+            javaSound.setOutputDeviceId(controller.config().outputDeviceId);
+            javaSound.setNoiseSuppression(controller.config().noiseSuppression);
             localTrack = factory.createAudioTrack("microphone", javaSound.source());
             localTrack.setEnabled(false);
             javaSound.start();
@@ -176,6 +179,16 @@ public final class WebRtcEngine {
         }
     }
 
+    public void applyDeviceSettings() {
+        if (javaSound == null) {
+            return;
+        }
+        javaSound.setInputDeviceId(controller.config().inputDeviceId);
+        javaSound.setOutputDeviceId(controller.config().outputDeviceId);
+        javaSound.setNoiseSuppression(controller.config().noiseSuppression);
+        javaSound.requestDeviceReload();
+    }
+
     public void syncLocalMic() {
         if (localTrack == null || javaSound == null) {
             return;
@@ -189,7 +202,9 @@ public final class WebRtcEngine {
         javaSound.setCaptureEnabled(transmit);
         javaSound.setMicGain(controller.config().micVolume);
         javaSound.setVadThreshold(controller.config().normalizedVadThreshold());
-        
+        javaSound.setNoiseSuppression(controller.config().noiseSuppression);
+        javaSound.setInputDeviceId(controller.config().inputDeviceId);
+        javaSound.setOutputDeviceId(controller.config().outputDeviceId);
         javaSound.setVadGate(transmit && openMic);
         if (controller.isDeafened()) {
             for (String id : peers.keySet()) {

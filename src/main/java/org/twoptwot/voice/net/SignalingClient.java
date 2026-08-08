@@ -48,6 +48,7 @@ public final class SignalingClient {
 
     private final Map<String, PeerInfo> peers = new ConcurrentHashMap<>();
     private final List<GroupInfo> groups = new CopyOnWriteArrayList<>();
+    private final List<GroupInvite> pendingInvites = new CopyOnWriteArrayList<>();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
 
     public SignalingClient(VoiceController controller) {
@@ -134,6 +135,86 @@ public final class SignalingClient {
         send(msg);
     }
 
+
+    public void inviteToGroup(String groupId, String targetUuid, Runnable onSuccess, Consumer<String> onError) {
+        io.execute(() -> {
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("sessionId", sessionId);
+                body.addProperty("groupId", groupId);
+                body.addProperty("targetUuid", targetUuid);
+                JsonObject res = postJson(controller.getApiBase() + "/api/groups/invite", body);
+                if (res == null || res.has("error")) {
+                    if (onError != null) {
+                        onError.accept(res != null && res.has("error") ? res.get("error").getAsString() : "invite_failed");
+                    }
+                    return;
+                }
+                if (onSuccess != null) {
+                    onSuccess.run();
+                }
+            } catch (Exception e) {
+                if (onError != null) {
+                    onError.accept(e.getMessage());
+                }
+            }
+        });
+    }
+
+    public void respondInvite(String inviteId, boolean accept, Runnable onSuccess, Consumer<String> onError) {
+        io.execute(() -> {
+            try {
+                JsonObject body = new JsonObject();
+                body.addProperty("sessionId", sessionId);
+                body.addProperty("inviteId", inviteId);
+                body.addProperty("accept", accept);
+                JsonObject res = postJson(controller.getApiBase() + "/api/groups/invite-respond", body);
+                if (res == null || (res.has("error") && !res.get("error").isJsonNull())) {
+                    if (onError != null) {
+                        onError.accept(res != null && res.has("error") ? res.get("error").getAsString() : "invite_respond_failed");
+                    }
+                    return;
+                }
+                if (onSuccess != null) {
+                    onSuccess.run();
+                }
+            } catch (Exception e) {
+                if (onError != null) {
+                    onError.accept(e.getMessage());
+                }
+            }
+        });
+    }
+
+    public void adminPost(String path, JsonObject body, Consumer<JsonObject> onSuccess, Consumer<String> onError) {
+        final JsonObject payload = body == null ? new JsonObject() : body;
+        io.execute(() -> {
+            try {
+                payload.addProperty("sessionId", sessionId);
+                JsonObject res = postJson(controller.getApiBase() + path, payload);
+                if (res == null) {
+                    if (onError != null) {
+                        onError.accept("request_failed");
+                    }
+                    return;
+                }
+                if (res.has("error") && !res.get("error").isJsonNull()) {
+                    if (onError != null) {
+                        onError.accept(res.get("error").getAsString());
+                    }
+                    return;
+                }
+                if (onSuccess != null) {
+                    onSuccess.accept(res);
+                }
+            } catch (Exception e) {
+                if (onError != null) {
+                    onError.accept(e.getMessage());
+                }
+            }
+        });
+    }
+
     public void send(JsonObject msg) {
         WsClient client = this.ws;
         if (client == null || !client.isOpen()) {
@@ -148,6 +229,17 @@ public final class SignalingClient {
 
     public List<GroupInfo> groups() {
         return groups;
+    }
+
+    public List<GroupInvite> pendingInvites() {
+        return pendingInvites;
+    }
+
+    public GroupInvite pollInvite() {
+        if (pendingInvites.isEmpty()) {
+            return null;
+        }
+        return pendingInvites.remove(0);
     }
 
     public boolean isConnected() {
@@ -460,6 +552,41 @@ public final class SignalingClient {
                     controller.setStatus("Voice blocked: " + optString(msg, "reason", "not_in_game"));
                     disconnect("voice_blocked");
                 }
+                case "group-invite" -> {
+                    GroupInvite invite = GroupInvite.fromJson(msg);
+                    if (invite != null) {
+                        pendingInvites.removeIf(i -> invite.inviteId.equals(i.inviteId));
+                        pendingInvites.add(invite);
+                        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                        if (mc != null) {
+                            mc.execute(() -> {
+                                if (mc.screen == null || !(mc.screen instanceof org.twoptwot.voice.ui.GroupInviteScreen)) {
+                                    mc.setScreen(new org.twoptwot.voice.ui.GroupInviteScreen(mc.screen, invite));
+                                }
+                            });
+                        }
+                    }
+                }
+                case "group-invite-result" -> {
+                    String status = optString(msg, "status", "");
+                    String groupName = optString(msg, "groupName", "group");
+                    String who = optString(msg, "name", "Player");
+                    if ("accepted".equals(status)) {
+                        controller.setStatus(who + " joined " + groupName);
+                        refreshGroups();
+                    } else if ("declined".equals(status)) {
+                        controller.setStatus(who + " declined invite to " + groupName);
+                    }
+                }
+                case "server-deafen-assigned" -> {
+                    boolean deaf = msg.has("deafened") && !msg.get("deafened").isJsonNull()
+                            && msg.get("deafened").getAsBoolean();
+                    if (deaf && !controller.isDeafened()) {
+                        controller.toggleDeafen();
+                    } else if (!deaf && controller.isDeafened()) {
+                        controller.toggleDeafen();
+                    }
+                }
                 default -> {
                 }
             }
@@ -668,6 +795,32 @@ public final class SignalingClient {
             }
             LOG.log(Level.WARNING, "Voice WebSocket error", ex);
             controller.setStatus("Voice WS error: " + detail);
+        }
+    }
+
+    public static final class GroupInvite {
+        public String inviteId = "";
+        public String groupId = "";
+        public String groupName = "";
+        public String fromUuid = "";
+        public String fromName = "";
+
+        public static GroupInvite fromJson(JsonObject obj) {
+            if (obj == null) {
+                return null;
+            }
+            String id = optString(obj, "inviteId", null);
+            String groupId = optString(obj, "groupId", null);
+            if (id == null || groupId == null) {
+                return null;
+            }
+            GroupInvite invite = new GroupInvite();
+            invite.inviteId = id;
+            invite.groupId = groupId;
+            invite.groupName = optString(obj, "groupName", groupId);
+            invite.fromUuid = optString(obj, "fromUuid", "");
+            invite.fromName = optString(obj, "fromName", "Player");
+            return invite;
         }
     }
 

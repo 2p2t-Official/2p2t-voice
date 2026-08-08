@@ -6,7 +6,6 @@ import dev.onvoid.webrtc.media.audio.CustomAudioSource;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.DataLine;
 import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 import java.util.Map;
@@ -38,7 +37,6 @@ public final class JavaSoundAudio {
     private Thread captureThread;
     private Thread playbackThread;
     private volatile float micGain = 1f;
-    
     private volatile boolean vadGate = false;
     private volatile float vadThreshold = 0.02f;
     private volatile boolean vadSpeaking;
@@ -46,6 +44,42 @@ public final class JavaSoundAudio {
     private float smoothedLevel;
     private float noiseFloor = 0.003f;
     private long speakingUntilMs;
+    private volatile String inputDeviceId = "";
+    private volatile String outputDeviceId = "";
+    private volatile boolean noiseSuppression = true;
+    private volatile boolean restartCapture;
+    private volatile boolean restartPlayback;
+    private float hpPrevIn;
+    private float hpPrevOut;
+
+
+    public void setInputDeviceId(String id) {
+        String next = id == null ? "" : id;
+        if (!next.equals(this.inputDeviceId)) {
+            this.inputDeviceId = next;
+            restartCapture = true;
+        }
+    }
+
+    public void setOutputDeviceId(String id) {
+        String next = id == null ? "" : id;
+        if (!next.equals(this.outputDeviceId)) {
+            this.outputDeviceId = next;
+            restartPlayback = true;
+        }
+    }
+
+    public void setNoiseSuppression(boolean enabled) {
+        this.noiseSuppression = enabled;
+    }
+
+    public String inputDeviceId() {
+        return inputDeviceId;
+    }
+
+    public String outputDeviceId() {
+        return outputDeviceId;
+    }
 
     public CustomAudioSource source() {
         return customSource;
@@ -168,71 +202,84 @@ public final class JavaSoundAudio {
 
     private void captureLoop() {
         AudioFormat format = new AudioFormat(SAMPLE_RATE, BITS, CHANNELS, true, false);
-        DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
         TargetDataLine line = null;
         byte[] buffer = new byte[FRAME_BYTES];
         byte[] pushBuf = new byte[FRAME_BYTES];
         long nextPushAt = System.nanoTime();
         try {
-            if (!AudioSystem.isLineSupported(info)) {
-                LOG.warning("No TargetDataLine for " + format);
-                return;
-            }
-            line = (TargetDataLine) AudioSystem.getLine(info);
-            line.open(format, FRAME_BYTES * 8);
-            line.start();
-
             while (running.get()) {
-                int read = 0;
-                while (read < FRAME_BYTES && running.get()) {
-                    int n = line.read(buffer, read, FRAME_BYTES - read);
-                    if (n <= 0) {
+                restartCapture = false;
+                try {
+                    if (line != null) {
+                        try {
+                            line.stop();
+                            line.flush();
+                            line.close();
+                        } catch (Throwable ignored) {
+                        }
+                        line = null;
+                    }
+                    line = AudioDevices.openInput(inputDeviceId, format, FRAME_BYTES * 8);
+                    line.start();
+                } catch (Throwable e) {
+                    LOG.log(Level.WARNING, "Mic open failed: " + e.getMessage(), e);
+                    sleep(500);
+                    continue;
+                }
+
+                while (running.get() && !restartCapture) {
+                    int read = 0;
+                    while (read < FRAME_BYTES && running.get() && !restartCapture) {
+                        int n = line.read(buffer, read, FRAME_BYTES - read);
+                        if (n <= 0) {
+                            break;
+                        }
+                        read += n;
+                    }
+                    if (!running.get() || !sourceAlive.get()) {
                         break;
                     }
-                    read += n;
-                }
-                if (!running.get() || !sourceAlive.get()) {
-                    break;
-                }
-                if (read < FRAME_BYTES) {
-                    for (int i = read; i < FRAME_BYTES; i++) {
-                        buffer[i] = 0;
-                    }
-                }
-
-                float level = rmsLevel(buffer, FRAME_BYTES);
-                lastMicLevel = level;
-                boolean speaking = updateVad(level);
-
-                
-                
-                boolean pushLive = captureEnabled.get() && micGain > 0.001f && (!vadGate || speaking);
-                if (!pushLive) {
-                    java.util.Arrays.fill(pushBuf, (byte) 0);
-                } else if (micGain < 0.999f || micGain > 1.001f) {
-                    applyGainInto(buffer, pushBuf, FRAME_BYTES, micGain);
-                } else {
-                    System.arraycopy(buffer, 0, pushBuf, 0, FRAME_BYTES);
-                }
-
-                synchronized (pushLock) {
-                    if (sourceAlive.get()) {
-                        try {
-                            customSource.pushAudio(pushBuf, BITS, SAMPLE_RATE, CHANNELS, FRAME_SAMPLES);
-                        } catch (Throwable t) {
-                            LOG.log(Level.WARNING, "pushAudio failed: " + t.getMessage(), t);
-                            sleep(20);
+                    if (read < FRAME_BYTES) {
+                        for (int i = read; i < FRAME_BYTES; i++) {
+                            buffer[i] = 0;
                         }
                     }
-                }
 
-                
-                nextPushAt += 10_000_000L;
-                long sleepNs = nextPushAt - System.nanoTime();
-                if (sleepNs > 1_000_000L) {
-                    sleep(sleepNs / 1_000_000L);
-                } else if (sleepNs < -20_000_000L) {
-                    nextPushAt = System.nanoTime();
+                    if (noiseSuppression) {
+                        applyNoiseSuppression(buffer, FRAME_BYTES);
+                    }
+
+                    float level = rmsLevel(buffer, FRAME_BYTES);
+                    lastMicLevel = level;
+                    boolean speaking = updateVad(level);
+
+                    boolean pushLive = captureEnabled.get() && micGain > 0.001f && (!vadGate || speaking);
+                    if (!pushLive) {
+                        java.util.Arrays.fill(pushBuf, (byte) 0);
+                    } else if (micGain < 0.999f || micGain > 1.001f) {
+                        applyGainInto(buffer, pushBuf, FRAME_BYTES, micGain);
+                    } else {
+                        System.arraycopy(buffer, 0, pushBuf, 0, FRAME_BYTES);
+                    }
+
+                    synchronized (pushLock) {
+                        if (sourceAlive.get()) {
+                            try {
+                                customSource.pushAudio(pushBuf, BITS, SAMPLE_RATE, CHANNELS, FRAME_SAMPLES);
+                            } catch (Throwable t) {
+                                LOG.log(Level.WARNING, "pushAudio failed: " + t.getMessage(), t);
+                                sleep(20);
+                            }
+                        }
+                    }
+
+                    nextPushAt += 10_000_000L;
+                    long sleepNs = nextPushAt - System.nanoTime();
+                    if (sleepNs > 1_000_000L) {
+                        sleep(sleepNs / 1_000_000L);
+                    } else if (sleepNs < -20_000_000L) {
+                        nextPushAt = System.nanoTime();
+                    }
                 }
             }
         } catch (Throwable e) {
@@ -300,6 +347,41 @@ public final class JavaSoundAudio {
     }
 
     
+    private void applyNoiseSuppression(byte[] pcm, int len) {
+        final float alpha = 0.995f;
+        for (int i = 0; i + 1 < len; i += 2) {
+            int sample = (short) ((pcm[i] & 0xff) | (pcm[i + 1] << 8));
+            float x = sample / 32768f;
+            float y = alpha * (hpPrevOut + x - hpPrevIn);
+            hpPrevIn = x;
+            hpPrevOut = y;
+            float gate = 1f;
+            float abs = Math.abs(y);
+            float floor = Math.max(noiseFloor * 2.2f, vadThreshold * 0.45f);
+            if (abs < floor) {
+                gate = Math.max(0.08f, abs / Math.max(floor, 1e-6f));
+                gate *= gate;
+            }
+            float out = y * gate;
+            int s = Math.round(out * 32768f);
+            if (s > Short.MAX_VALUE) {
+                s = Short.MAX_VALUE;
+            } else if (s < Short.MIN_VALUE) {
+                s = Short.MIN_VALUE;
+            }
+            pcm[i] = (byte) (s & 0xff);
+            pcm[i + 1] = (byte) ((s >> 8) & 0xff);
+        }
+    }
+
+    public void requestDeviceReload() {
+        restartCapture = true;
+        restartPlayback = true;
+        for (PeerPlayback playback : playbacks.values()) {
+            playback.forceCloseLine();
+        }
+    }
+
     private static float rmsLevel(byte[] pcm, int len) {
         if (pcm == null || len < 2) {
             return 0f;
@@ -427,14 +509,8 @@ public final class JavaSoundAudio {
         private void openLine(int sampleRate, int channels, int bits) {
             try {
                 AudioFormat format = new AudioFormat(sampleRate, bits, channels, true, false);
-                DataLine.Info info = new DataLine.Info(SourceDataLine.class, format);
-                if (!AudioSystem.isLineSupported(info)) {
-                    LOG.warning("No SourceDataLine for " + format);
-                    return;
-                }
-                line = (SourceDataLine) AudioSystem.getLine(info);
                 int buffer = Math.max(sampleRate / 20, 1024) * channels * (bits / 8);
-                line.open(format, buffer);
+                line = AudioDevices.openOutput(outputDeviceId, format, buffer);
                 line.start();
                 lineRate = sampleRate;
                 lineChannels = channels;
@@ -443,6 +519,10 @@ public final class JavaSoundAudio {
                 LOG.log(Level.WARNING, "Playback open failed for " + peerId + ": " + e.getMessage(), e);
                 line = null;
             }
+        }
+
+        private synchronized void forceCloseLine() {
+            closeLine();
         }
 
         private void closeLine() {
