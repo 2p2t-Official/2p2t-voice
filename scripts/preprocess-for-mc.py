@@ -8,6 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "main" / "java"
 
+MOUSE = r"(?:net\.minecraft\.client\.input\.)?MouseButtonEvent"
+
 
 def ver_tuple(v: str) -> tuple:
     if v.startswith("26.") or v.startswith("25."):
@@ -24,6 +26,7 @@ def patch_files(mc: str) -> None:
     use_identifier = v >= ver_tuple("1.21.11")
     use_mouse_event = v >= ver_tuple("1.21.9")
     use_key_category = v >= ver_tuple("1.21.9")
+    use_render_pipelines = v >= ver_tuple("1.21.6")
 
     for path in SRC.rglob("*.java"):
         text = path.read_text()
@@ -62,31 +65,54 @@ def patch_files(mc: str) -> None:
                 "",
             )
             text = re.sub(
-                r"public boolean mouseClicked\(MouseButtonEvent event, boolean doubleClick\)",
+                rf"public boolean mouseClicked\({MOUSE} event, boolean doubleClick\)",
                 "public boolean mouseClicked(double mouseX, double mouseY, int button)",
                 text,
             )
             text = re.sub(
-                r"public boolean mouseDragged\(MouseButtonEvent event, double dx, double dy\)",
+                rf"public boolean mouseDragged\({MOUSE} event, double dx, double dy\)",
                 "public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy)",
                 text,
             )
             text = re.sub(
-                r"public boolean mouseReleased\(MouseButtonEvent event\)",
+                rf"public boolean mouseReleased\({MOUSE} event\)",
                 "public boolean mouseReleased(double mouseX, double mouseY, int button)",
                 text,
             )
             text = re.sub(
-                r"public void onClick\(MouseButtonEvent event, boolean doubleClick\)",
+                rf"public void onClick\({MOUSE} event, boolean doubleClick\)",
                 "public void onClick(double mouseX, double mouseY)",
                 text,
             )
             text = text.replace("event.button()", "button")
             text = text.replace("event.x()", "mouseX")
             text = text.replace("event.y()", "mouseY")
-            text = text.replace("super.mouseClicked(event, doubleClick)", "super.mouseClicked(mouseX, mouseY, button)")
-            text = text.replace("super.mouseDragged(event, dx, dy)", "super.mouseDragged(mouseX, mouseY, button, dx, dy)")
-            text = text.replace("super.mouseReleased(event)", "super.mouseReleased(mouseX, mouseY, button)")
+            text = text.replace(
+                "super.mouseClicked(event, doubleClick)",
+                "super.mouseClicked(mouseX, mouseY, button)",
+            )
+            text = text.replace(
+                "super.mouseDragged(event, dx, dy)",
+                "super.mouseDragged(mouseX, mouseY, button, dx, dy)",
+            )
+            text = text.replace(
+                "super.mouseReleased(event)",
+                "super.mouseReleased(mouseX, mouseY, button)",
+            )
+
+        if not use_render_pipelines and path.name == "VoiceHud.java":
+            text = text.replace(
+                "import net.minecraft.client.renderer.RenderPipelines;\n",
+                "",
+            )
+            text = text.replace(
+                "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+                "graphics.blit(skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
+            )
+            text = text.replace(
+                "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+                "graphics.blit(skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
+            )
 
         if text != orig:
             path.write_text(text)

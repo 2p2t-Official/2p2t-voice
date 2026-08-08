@@ -7,7 +7,6 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.entity.player.PlayerSkin;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
 import org.twoptwot.voice.audio.VoiceController;
@@ -254,24 +253,65 @@ public final class VoiceHud {
         if (uuid != null && mc.getConnection() != null) {
             PlayerInfo info = mc.getConnection().getPlayerInfo(uuid);
             if (info != null) {
-                try {
-                    PlayerSkin skin = info.getSkin();
-                    return skin.body().texturePath();
-                } catch (Throwable ignored) {
+                Identifier fromInfo = textureFromSkinObject(invokeNoArg(info, "getSkin"));
+                if (fromInfo != null) {
+                    return fromInfo;
+                }
+                Identifier legacy = asIdentifier(invokeNoArg(info, "getSkinLocation"));
+                if (legacy != null) {
+                    return legacy;
                 }
             }
         }
+        if (uuid != null) {
+            try {
+                Object skin = DefaultPlayerSkin.class.getMethod("get", UUID.class).invoke(null, uuid);
+                Identifier fromDefault = textureFromSkinObject(skin);
+                if (fromDefault != null) {
+                    return fromDefault;
+                }
+            } catch (Throwable ignored) {
+            }
+        }
         try {
-            if (uuid != null) {
-                return DefaultPlayerSkin.get(uuid).body().texturePath();
+            Object tex = DefaultPlayerSkin.class.getMethod("getDefaultTexture").invoke(null);
+            Identifier rl = asIdentifier(tex);
+            if (rl != null) {
+                return rl;
             }
         } catch (Throwable ignored) {
         }
-        try {
-            return DefaultPlayerSkin.getDefaultTexture();
-        } catch (Throwable ignored) {
-            return Identifier.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
+        return Identifier.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
+    }
+
+    private static Identifier textureFromSkinObject(Object skin) {
+        if (skin == null) {
+            return null;
         }
+        try {
+            Object body = skin.getClass().getMethod("body").invoke(skin);
+            Identifier path = asIdentifier(invokeNoArg(body, "texturePath"));
+            if (path != null) {
+                return path;
+            }
+        } catch (Throwable ignored) {
+        }
+        return asIdentifier(invokeNoArg(skin, "texture"));
+    }
+
+    private static Object invokeNoArg(Object target, String method) {
+        if (target == null) {
+            return null;
+        }
+        try {
+            return target.getClass().getMethod(method).invoke(target);
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Identifier asIdentifier(Object value) {
+        return value instanceof Identifier id ? id : null;
     }
 
     public boolean hitMain(double mx, double my) {
