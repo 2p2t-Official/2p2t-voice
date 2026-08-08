@@ -70,18 +70,6 @@ Examples:
 ./scripts/build-one.sh 26.2
 ```
 
-### Optional (maintainers)
-
-Build every supported version, or publish GitHub Releases:
-
-```bash
-./scripts/build-versions.sh
-./scripts/build-26.sh
-./scripts/release.sh
-```
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
-
-Official play on `2p2t.org` only accepts release builds published by the project. Modified or self-signed jars will not get a voice session on the live server.
