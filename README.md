@@ -6,7 +6,7 @@ Fabric client mod for [2p2t](https://2p2t.org) proximity and channel voice chat.
 
 - Fabric Loader
 - Fabric API
-- A supported Minecraft release (see [Releases](https://github.com/WaffleStealz/2p2t-voice/releases))
+- A supported Minecraft release (see [Releases](https://github.com/2p2t-Official/2p2t-voice/releases))
 - Joining `2p2t.org`
 
 ## Install
@@ -16,11 +16,11 @@ Fabric client mod for [2p2t](https://2p2t.org) proximity and channel voice chat.
 3. Install Fabric API for that same version.
 4. Join the server and open the voice menu with the keybind (default: check Controls → 2p2t Voice).
 
-Most players should just download a jar from [Releases](https://github.com/WaffleStealz/2p2t-voice/releases). Building from source is optional.
+Most players should just download a jar from [Releases](https://github.com/2p2t-Official/2p2t-voice/releases). Building from source is optional.
 
 ## Updates
 
-The mod checks [GitHub Releases](https://github.com/WaffleStealz/2p2t-voice/releases) for a jar built for your Minecraft version.
+The mod checks [GitHub Releases](https://github.com/2p2t-Official/2p2t-voice/releases) for a jar built for your Minecraft version.
 
 - Auto-update can be toggled in Voice Settings.
 - **Check updates** and **Update now** are also there if you want to run it by hand.
@@ -50,7 +50,7 @@ If you want to compile the mod yourself, build **only the Minecraft version you 
 **Steps**
 
 ```bash
-git clone https://github.com/WaffleStealz/2p2t-voice.git
+git clone https://github.com/2p2t-Official/2p2t-voice.git
 cd 2p2t-voice
 ./scripts/build-one.sh 1.21.11
 ```

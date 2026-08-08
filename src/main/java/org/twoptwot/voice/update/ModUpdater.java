@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class ModUpdater {
 
-    public static final String GITHUB_REPO = "WaffleStealz/2p2t-voice";
+    public static final String GITHUB_REPO = "2p2t-Official/2p2t-voice";
     private static final String API_LATEST =
             "https://api.github.com/repos/" + GITHUB_REPO + "/releases/latest";
     private static final DateTimeFormatter DISPLAY_FMT =

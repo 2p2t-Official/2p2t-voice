@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-REPO="${GITHUB_REPO:-WaffleStealz/2p2t-voice}"
+REPO="${GITHUB_REPO:-2p2t-Official/2p2t-voice}"
 SKIP_BUILD=0
 SKIP_UPLOAD=0
 NOTES=""
