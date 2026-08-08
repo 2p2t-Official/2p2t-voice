@@ -1,18 +1,20 @@
 package org.twoptwot.voice.ui;
 
+import com.mojang.authlib.GameProfile;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.multiplayer.PlayerInfo;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.DefaultPlayerSkin;
-import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.PlayerSkin;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
 import org.twoptwot.voice.audio.VoiceController;
 import org.twoptwot.voice.net.SignalingClient;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -238,138 +240,79 @@ public final class VoiceHud {
         graphics.drawString(mc.font, header, x + pad + 4, y + 4, VoiceUi.TEXT_DIM, false);
         int ty = y + 15;
         for (SpeakerRow row : rows) {
-            drawHead(graphics, mc, row.uuid, x + pad, ty - 1);
+            drawHead(graphics, mc, row.uuid, row.name, x + pad, ty - 1);
             graphics.drawString(mc.font, row.name, x + pad + head + 4, ty, VoiceUi.TEXT, false);
             ty += rowH;
         }
     }
 
-    private static void drawHead(GuiGraphics graphics, Minecraft mc, String uuidStr, int x, int y) {
-        Identifier skin = resolveSkin(mc, uuidStr);
-        if (tryPlayerFaceRenderer(graphics, skin, x, y, 8)) {
-            return;
-        }
+    /**
+     * Direct {@link PlayerSkin} / {@link PlayerFaceRenderer} calls (Loom-remapped).
+     * Do not resolve skins via reflection on Mojang names — those break at runtime under
+     * intermediary mappings and always fell back to Steve.
+     */
+    private static void drawHead(GuiGraphics graphics, Minecraft mc, String uuidStr, String name, int x, int y) {
         try {
-            graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);
-            graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);
+            PlayerFaceRenderer.draw(graphics, resolvePlayerSkin(mc, uuidStr, name), x, y, 8);
         } catch (Throwable t) {
             graphics.fill(x, y, x + 8, y + 8, VoiceUi.ACCENT);
         }
     }
 
-    private static boolean tryPlayerFaceRenderer(GuiGraphics graphics, Identifier skin, int x, int y, int size) {
-        try {
-            Class<?> clazz = Class.forName("net.minecraft.client.gui.components.PlayerFaceRenderer");
-            try {
-                clazz.getMethod("draw", GuiGraphics.class, Identifier.class, int.class, int.class, int.class)
-                        .invoke(null, graphics, skin, x, y, size);
-                return true;
-            } catch (NoSuchMethodException ignored) {
-            }
-            try {
-                clazz.getMethod("draw", GuiGraphics.class, Identifier.class, int.class, int.class, int.class, int.class)
-                        .invoke(null, graphics, skin, x, y, size, -1);
-                return true;
-            } catch (NoSuchMethodException ignored) {
-            }
-        } catch (Throwable ignored) {
-        }
-        return false;
-    }
-
-    private static Identifier resolveSkin(Minecraft mc, String uuidStr) {
+    private static PlayerSkin resolvePlayerSkin(Minecraft mc, String uuidStr, String name) {
         UUID uuid = parseUuid(uuidStr);
-        if (uuid == null && mc.player != null) {
-            uuid = mc.player.getUUID();
-        }
 
-        if (mc.player != null && uuid != null && uuid.equals(mc.player.getUUID())) {
-            Identifier local = textureFromSkinObject(safeGetSkin(mc.player));
-            if (local != null && !isDefaultStevePath(local)) {
-                return local;
-            }
-            if (local != null) {
-                return local;
+        if (mc.player != null) {
+            boolean selfByUuid = uuid != null && uuid.equals(mc.player.getUUID());
+            boolean selfByName = name != null && !name.isBlank()
+                    && nameEquals(name, profileName(mc.player.getGameProfile()));
+            if (selfByUuid || selfByName || (uuid == null && (name == null || name.isBlank()))) {
+                return mc.player.getSkin();
             }
         }
 
-        if (uuid != null && mc.getConnection() != null) {
-            PlayerInfo info = mc.getConnection().getPlayerInfo(uuid);
-            if (info != null) {
-                Identifier fromInfo = textureFromSkinObject(safeGetSkin(info));
-                if (fromInfo != null && !isDefaultStevePath(fromInfo)) {
-                    return fromInfo;
-                }
-                if (fromInfo != null) {
-                    return fromInfo;
+        if (mc.getConnection() != null) {
+            if (uuid != null) {
+                PlayerInfo byId = mc.getConnection().getPlayerInfo(uuid);
+                if (byId != null) {
+                    return byId.getSkin();
                 }
             }
-        }
-
-        if (mc.player != null && (uuid == null || uuid.equals(mc.player.getUUID()))) {
-            Identifier local = textureFromSkinObject(safeGetSkin(mc.player));
-            if (local != null) {
-                return local;
+            PlayerInfo byName = findPlayerInfoByName(mc, name);
+            if (byName != null) {
+                return byName.getSkin();
             }
         }
 
         if (uuid != null) {
-            try {
-                Object skin = DefaultPlayerSkin.class.getMethod("get", UUID.class).invoke(null, uuid);
-                Identifier fromDefault = textureFromSkinObject(skin);
-                if (fromDefault != null) {
-                    return fromDefault;
-                }
-            } catch (Throwable ignored) {
-            }
+            return DefaultPlayerSkin.get(uuid);
         }
-        try {
-            Object tex = DefaultPlayerSkin.class.getMethod("getDefaultTexture").invoke(null);
-            Identifier rl = asIdentifier(tex);
-            if (rl != null) {
-                return rl;
-            }
-        } catch (Throwable ignored) {
-        }
-        return Identifier.fromNamespaceAndPath("minecraft", "textures/entity/player/wide/steve.png");
+        return DefaultPlayerSkin.getDefaultSkin();
     }
 
-    private static Object safeGetSkin(Object target) {
-        if (target == null) {
+    private static PlayerInfo findPlayerInfoByName(Minecraft mc, String name) {
+        if (name == null || name.isBlank() || mc.getConnection() == null) {
             return null;
         }
-        Object skin = invokeNoArg(target, "getSkin");
-        if (skin != null) {
-            return skin;
-        }
-        return invokeNoArg(target, "getSkinLocation");
-    }
-
-    private static boolean isDefaultStevePath(Identifier id) {
-        if (id == null) {
-            return true;
-        }
-        String path = id.getPath();
-        return path != null && (path.contains("/steve") || path.endsWith("steve.png"));
-    }
-
-    private static String profileName(Object profile) {
-        if (profile == null) {
-            return null;
-        }
-        for (String method : new String[]{"name", "getName"}) {
-            try {
-                Object n = profile.getClass().getMethod(method).invoke(profile);
-                if (n != null) {
-                    String s = n.toString();
-                    if (!s.isBlank()) {
-                        return s;
-                    }
-                }
-            } catch (Throwable ignored) {
+        Collection<PlayerInfo> online = mc.getConnection().getOnlinePlayers();
+        for (PlayerInfo info : online) {
+            if (info != null && nameEquals(name, profileName(info.getProfile()))) {
+                return info;
             }
         }
         return null;
+    }
+
+    private static boolean nameEquals(String a, String b) {
+        return a != null && b != null && a.equalsIgnoreCase(b);
+    }
+
+    private static String profileName(GameProfile profile) {
+        if (profile == null) {
+            return null;
+        }
+        String n = profile.name();
+        return n == null || n.isBlank() ? null : n;
     }
 
     private static UUID parseUuid(String uuidStr) {
@@ -377,58 +320,10 @@ public final class VoiceHud {
             return null;
         }
         try {
-            return UUID.fromString(uuidStr);
+            return UUID.fromString(uuidStr.trim());
         } catch (Exception ignored) {
             return null;
         }
-    }
-
-    private static Identifier textureFromSkinObject(Object skin) {
-        if (skin == null) {
-            return null;
-        }
-        try {
-            Object body = skin.getClass().getMethod("body").invoke(skin);
-            Object path = body.getClass().getMethod("texturePath").invoke(body);
-            Identifier id = asIdentifier(path);
-            if (id != null) {
-                return id;
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            for (Class<?> iface : skin.getClass().getInterfaces()) {
-                // no-op; fall through
-            }
-            Object body = skin.getClass().getMethod("body").invoke(skin);
-            for (Class<?> iface : body.getClass().getInterfaces()) {
-                try {
-                    Object path = iface.getMethod("texturePath").invoke(body);
-                    Identifier id = asIdentifier(path);
-                    if (id != null) {
-                        return id;
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        return asIdentifier(invokeNoArg(skin, "texture"));
-    }
-
-    private static Object invokeNoArg(Object target, String method) {
-        if (target == null) {
-            return null;
-        }
-        try {
-            return target.getClass().getMethod(method).invoke(target);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static Identifier asIdentifier(Object value) {
-        return value instanceof Identifier id ? id : null;
     }
 
     public boolean hitMain(double mx, double my) {

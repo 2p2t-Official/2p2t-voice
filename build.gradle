@@ -122,6 +122,7 @@ tasks.named('jar', Jar).configure {
 afterEvaluate {
     tasks.matching { it.name == 'sourcesJar' || it.name == 'remapSourcesJar' }.configureEach {
         dependsOn tasks.named('extractWebRtcNatives')
+        dependsOn tasks.named('writeIntegrityProps')
     }
 }
 
