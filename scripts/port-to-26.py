@@ -64,7 +64,7 @@ def port(mc: str) -> None:
         text = text.replace("protected void renderWidget(", "protected void extractWidgetRenderState(")
         text = text.replace("public void renderWidget(", "public void extractWidgetRenderState(")
 
-        if path.name.endswith("Screen.java") and path.name.startswith("Twop"):
+        if path.name.endswith("Screen.java"):
             text = text.replace("public void renderBackground(", "public void extractBackground(")
             text = text.replace("public void render(", "public void extractRenderState(")
             text = text.replace("super.render(", "super.extractRenderState(")
