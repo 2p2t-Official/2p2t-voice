@@ -1,7 +1,6 @@
 package org.twoptwot.voice;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.util.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ServerData;
 import org.twoptwot.voice.update.ModUpdater;
@@ -14,6 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public final class VoiceDebug {
 
@@ -93,10 +93,24 @@ public final class VoiceDebug {
             if (sessionFile == null) {
                 log("debug folder opened");
             }
-            Util.getPlatform().openFile(dir.toFile());
+            openDir(dir);
         } catch (Exception e) {
             log("openFolder failed: " + e.getMessage());
         }
+    }
+
+    private static void openDir(Path dir) throws IOException {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        String abs = dir.toAbsolutePath().toString();
+        if (os.contains("win")) {
+            new ProcessBuilder("explorer.exe", abs).start();
+            return;
+        }
+        if (os.contains("mac")) {
+            new ProcessBuilder("open", abs).start();
+            return;
+        }
+        new ProcessBuilder("xdg-open", abs).start();
     }
 
     private static String shortHash(String hash) {
