@@ -209,12 +209,13 @@ public final class ModUpdater {
         JsonArray assets = root.has("assets") ? root.getAsJsonArray("assets") : new JsonArray();
         String assetName = "";
         String assetUrl = "";
+        // Prefer an exact +<mc>.jar match; never let "1.21" steal "1.21.10".
         for (JsonElement el : assets) {
             if (!el.isJsonObject()) continue;
             JsonObject a = el.getAsJsonObject();
             String name = a.has("name") ? a.get("name").getAsString() : "";
             String dl = a.has("browser_download_url") ? a.get("browser_download_url").getAsString() : "";
-            if (name.toLowerCase(Locale.ROOT).endsWith(".jar") && matchesMinecraft(name, mc)) {
+            if (name.toLowerCase(Locale.ROOT).endsWith(".jar") && matchesMinecraftExact(name, mc)) {
                 assetName = name;
                 assetUrl = dl;
                 break;
@@ -227,14 +228,39 @@ public final class ModUpdater {
         return new CheckResult(cleanTag, assetName, assetUrl, newer);
     }
 
-    static boolean matchesMinecraft(String assetName, String mcVersion) {
+    /** Exact game-version match for release asset names like twoptwotvoice-1.2.8+1.21.4.jar */
+    static boolean matchesMinecraftExact(String assetName, String mcVersion) {
         String n = assetName.toLowerCase(Locale.ROOT);
-        String mc = mcVersion.toLowerCase(Locale.ROOT);
-        return n.contains("+" + mc + ".")
-                || n.contains("+" + mc + "-")
-                || n.endsWith("+" + mc + ".jar")
-                || n.contains("-" + mc + ".jar")
-                || n.contains("_" + mc + ".jar");
+        for (String mc : mcVersionCandidates(mcVersion)) {
+            if (n.endsWith("+" + mc + ".jar")
+                    || n.contains("+" + mc + "-")
+                    || n.endsWith("-" + mc + ".jar")
+                    || n.endsWith("_" + mc + ".jar")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** @deprecated use {@link #matchesMinecraftExact(String, String)} */
+    static boolean matchesMinecraft(String assetName, String mcVersion) {
+        return matchesMinecraftExact(assetName, mcVersion);
+    }
+
+    static List<String> mcVersionCandidates(String mcVersion) {
+        String mc = mcVersion == null ? "" : mcVersion.trim().toLowerCase(Locale.ROOT);
+        List<String> out = new ArrayList<>();
+        if (!mc.isEmpty()) {
+            out.add(mc);
+        }
+        // Launchers sometimes report 1.21.0 while release assets use +1.21.jar
+        if (mc.endsWith(".0") && mc.chars().filter(ch -> ch == '.').count() >= 2) {
+            String trimmed = mc.substring(0, mc.length() - 2);
+            if (!trimmed.isEmpty() && !out.contains(trimmed)) {
+                out.add(trimmed);
+            }
+        }
+        return out;
     }
 
     static boolean isNewer(String remote, String local) {
@@ -292,8 +318,29 @@ public final class ModUpdater {
         try (InputStream in = res.body()) {
             Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
         }
-        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-        return target;
+        try {
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            return target;
+        } catch (Exception replaceFail) {
+            // Windows locks the jar that Fabric already loaded — install beside it instead.
+            Path loaded = currentLoadedJar();
+            if (loaded != null && pathsEqual(loaded, target)) {
+                Path alt = mods.resolve(assetName.replace(".jar", "") + "-update.jar");
+                try {
+                    Files.move(tmp, alt, StandardCopyOption.REPLACE_EXISTING);
+                    return alt;
+                } catch (Exception altFail) {
+                    tryDelete(tmp);
+                    throw new IllegalStateException(
+                            "Close Minecraft, delete old twoptwotvoice jars in mods, then install from GitHub",
+                            altFail);
+                }
+            }
+            tryDelete(tmp);
+            throw new IllegalStateException(
+                    "Could not write " + assetName + " (file in use?). Close Minecraft and retry, or install manually.",
+                    replaceFail);
+        }
     }
 
     private static void retireOtherVoiceJars(Path mods, Path keep) {
