@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.network.chat.Component;
 import org.twoptwot.voice.ui.VoiceButton;
+import org.twoptwot.voice.ui.VoiceUi;
 import org.twoptwot.voice.update.ModUpdater;
 
 import java.util.ArrayList;
