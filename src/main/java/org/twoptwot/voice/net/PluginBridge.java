@@ -2,7 +2,6 @@ package org.twoptwot.voice.net;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import net.fabricmc.fabric.api.client.networking.v1.C2SPlayChannelEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.network.FriendlyByteBuf;
@@ -47,32 +46,14 @@ public final class PluginBridge {
                 handleIncoming(payload.json());
             });
         });
-
-        C2SPlayChannelEvents.REGISTER.register((handler, sender, client, channels) -> {
-            if (!channels.contains(CHANNEL_ID)) {
-                return;
-            }
-            client.execute(() -> {
-                VoiceDebug.log("channel REGISTER twoptwotvoice:main");
-                if (!ServerGate.isAllowed()) {
-                    return;
-                }
-                if (sessionRequested && !waitingForChannel) {
-                    return;
-                }
-                waitingForChannel = false;
-                waitTicks = 0;
-                sendHello("channel-register");
-            });
-        });
     }
 
     public void onJoin() {
         waitTicks = 0;
+        sessionRequested = false;
+        waitingForChannel = false;
+        awaiting = false;
         VoiceDebug.snapshot("join");
-        if (sessionRequested && !waitingForChannel) {
-            return;
-        }
         requestSession(false);
     }
 
