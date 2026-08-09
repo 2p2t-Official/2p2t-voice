@@ -68,6 +68,14 @@ def port(mc: str) -> None:
             text = text.replace("public void renderBackground(", "public void extractBackground(")
             text = text.replace("public void render(", "public void extractRenderState(")
             text = text.replace("super.render(", "super.extractRenderState(")
+            text = text.replace("super.renderBackground(", "super.extractBackground(")
+            text = text.replace("renderBackground(", "extractBackground(")
+
+        text = re.sub(
+            r"new OptionsScreen\(([^,\n]+),\s*([^,\n)]+)\)",
+            r"new OptionsScreen(\1, \2, false)",
+            text,
+        )
 
         text = re.sub(r"\b(g|graphics)\.drawString\(", r"\1.text(", text)
         text = re.sub(r"\b(g|graphics)\.drawCenteredString\(", r"\1.centeredText(", text)

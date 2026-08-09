@@ -88,11 +88,6 @@ public final class TwopMultiplayerScreen extends Screen {
     @Override
     public void renderBackground(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         MenuChrome.drawBackdrop(graphics, width, height, ticks + partialTick);
-    }
-
-    @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
         int logoSize = Math.min(80, Math.max(56, height / 7));
         int top = Math.max(18, height / 12);
         MenuChrome.drawLogo(graphics, width / 2, top, logoSize);
@@ -103,13 +98,11 @@ public final class TwopMultiplayerScreen extends Screen {
                 width / 2,
                 top + logoSize + 20,
                 VoiceUi.TEXT_DIM);
+    }
 
-        for (var child : children()) {
-            if (child instanceof net.minecraft.client.gui.components.Renderable renderable) {
-                renderable.render(graphics, mouseX, mouseY, partialTick);
-            }
-        }
-
+    @Override
+    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        super.render(graphics, mouseX, mouseY, partialTick);
         if (ModUpdater.isUpdateAvailable()) {
             graphics.drawCenteredString(
                     font,
