@@ -40,6 +40,23 @@ public final class MenuChrome {
         graphics.blit(RenderPipelines.GUI_TEXTURED, LOGO, x, topY, 0.0f, 0.0f, size, size, size, size);
     }
 
+    public static void drawRoundedLogo(GuiGraphics graphics, int x, int y, int size, int maskColor) {
+        graphics.blit(RenderPipelines.GUI_TEXTURED, LOGO, x, y, 0.0f, 0.0f, size, size, size, size);
+        int radius = Mth.clamp(size / 4, 2, 6);
+        for (int i = 0; i < radius; i++) {
+            for (int j = 0; j < radius; j++) {
+                float dx = radius - (i + 0.5f);
+                float dy = radius - (j + 0.5f);
+                if (dx * dx + dy * dy > radius * radius) {
+                    graphics.fill(x + i, y + j, x + i + 1, y + j + 1, maskColor);
+                    graphics.fill(x + size - 1 - i, y + j, x + size - i, y + j + 1, maskColor);
+                    graphics.fill(x + i, y + size - 1 - j, x + i + 1, y + size - j, maskColor);
+                    graphics.fill(x + size - 1 - i, y + size - 1 - j, x + size - i, y + size - j, maskColor);
+                }
+            }
+        }
+    }
+
     public static void drawBrandTitle(GuiGraphics graphics, Font font, int centerX, int y) {
         Component title = Component.literal("2p2t");
         graphics.drawCenteredString(font, title, centerX, y, VoiceUi.GOLD);

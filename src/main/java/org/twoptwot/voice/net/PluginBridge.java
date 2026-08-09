@@ -74,7 +74,7 @@ public final class PluginBridge {
         if (waitTicks >= GIVE_UP_TICKS) {
             awaiting = false;
             VoiceDebug.snapshot("hello-timeout");
-            controller.setStatus("Voice unavailable");
+            controller.setStatus("Voice is unavailable");
         }
     }
 
@@ -102,7 +102,7 @@ public final class PluginBridge {
         awaiting = true;
         sessionRequested = true;
         waitTicks = 0;
-        controller.setStatus("Requesting voice session...");
+        controller.setStatus("Connecting…");
         JsonObject hello = new JsonObject();
         hello.addProperty("t", "hello");
         String version = net.fabricmc.loader.api.FabricLoader.getInstance()
@@ -123,7 +123,7 @@ public final class PluginBridge {
         } catch (Exception e) {
             VoiceDebug.log("hello send failed: " + e.getMessage());
             awaiting = false;
-            controller.setStatus("Voice unavailable");
+            controller.setStatus("Voice is unavailable");
         }
     }
 
@@ -138,9 +138,9 @@ public final class PluginBridge {
                 String err = obj.has("error") ? obj.get("error").getAsString() : "unknown";
                 VoiceDebug.log("error=" + err);
                 if ("unofficial_mod".equals(err)) {
-                    controller.setStatus("Unofficial/modified voice mod — use a release jar from GitHub");
+                    controller.setStatus("This mod build is not allowed. Download the official release.");
                 } else {
-                    controller.setStatus("Voice error: " + err);
+                    controller.setStatus("Couldn't start voice: " + err);
                 }
                 return;
             }
@@ -159,7 +159,7 @@ public final class PluginBridge {
             signaling.connect(wsUrl, sessionId);
         } catch (Exception e) {
             VoiceDebug.log("bad session payload: " + e.getMessage());
-            controller.setStatus("Bad session payload");
+            controller.setStatus("Couldn't start voice.");
         }
     }
 

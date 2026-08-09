@@ -52,10 +52,16 @@ public final class MenuBootstrap {
                 return;
             }
             VoiceConfig config = TwoptwotVoiceClient.get().config();
-            int bw = 160;
+            int bw = 120;
             int bh = 20;
-            int x = scaledWidth / 2 - bw / 2;
-            int y = scaledHeight - 28;
+            int x = scaledWidth - bw - 6;
+            int y = 6;
+            List<AbstractWidget> existing = tryGetButtons(screen);
+            if (existing != null) {
+                int[] spot = findFreeSpot(existing, scaledWidth, scaledHeight, bw, bh);
+                x = spot[0];
+                y = spot[1];
+            }
             addButton(screen, new VoiceButton(
                     x, y, bw, bh,
                     brandingLabel(config.brandedMenus),
@@ -81,15 +87,57 @@ public final class MenuBootstrap {
         return Component.literal(on ? "2p2t Menus: ON" : "2p2t Menus: OFF");
     }
 
+    private static int[] findFreeSpot(List<AbstractWidget> existing, int sw, int sh, int bw, int bh) {
+        int[][] candidates = {
+                {sw - bw - 6, 6},
+                {6, 6},
+                {sw - bw - 6, 28},
+                {6, 28},
+                {sw / 2 - bw / 2, 6}
+        };
+        for (int[] c : candidates) {
+            if (!overlapsAny(existing, c[0], c[1], bw, bh)) {
+                return c;
+            }
+        }
+        return new int[]{sw - bw - 6, 6};
+    }
+
+    private static boolean overlapsAny(List<AbstractWidget> existing, int x, int y, int w, int h) {
+        int x2 = x + w;
+        int y2 = y + h;
+        for (AbstractWidget widget : existing) {
+            if (widget == null) {
+                continue;
+            }
+            int wx = widget.getX();
+            int wy = widget.getY();
+            int wx2 = wx + widget.getWidth();
+            int wy2 = wy + widget.getHeight();
+            if (x < wx2 && x2 > wx && y < wy2 && y2 > wy) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @SuppressWarnings("unchecked")
-    private static void addButton(Screen screen, AbstractWidget button) {
+    private static List<AbstractWidget> tryGetButtons(Screen screen) {
         try {
             Class<?> screens = Class.forName("net.fabricmc.fabric.api.client.screen.v1.Screens");
             Method getButtons = screens.getMethod("getButtons", Screen.class);
-            List<AbstractWidget> buttons = (List<AbstractWidget>) getButtons.invoke(null, screen);
+            return (List<AbstractWidget>) getButtons.invoke(null, screen);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void addButton(Screen screen, AbstractWidget button) {
+        List<AbstractWidget> buttons = tryGetButtons(screen);
+        if (buttons != null) {
             buttons.add(button);
             return;
-        } catch (Throwable ignored) {
         }
         try {
             Method add = Screen.class.getDeclaredMethod("addRenderableWidget",

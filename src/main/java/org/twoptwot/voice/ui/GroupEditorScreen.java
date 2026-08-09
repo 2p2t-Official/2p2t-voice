@@ -39,36 +39,51 @@ public final class GroupEditorScreen extends Screen {
     private int panelW = 300;
     private int panelH = 168;
 
+    private final boolean adminManage;
+
     public GroupEditorScreen(Screen parent) {
-        this(parent, null, true, "", "");
+        this(parent, null, true, "", "", false);
     }
 
     public GroupEditorScreen(Screen parent, SignalingClient.GroupInfo editing) {
+        this(parent, editing, false);
+    }
+
+    public GroupEditorScreen(Screen parent, SignalingClient.GroupInfo editing, boolean adminManage) {
         this(parent, editing,
                 editing == null || editing.isPublic,
                 editing != null && editing.name != null ? editing.name : "",
-                editing != null ? String.join(", ", editing.allowedNames) : "");
+                editing != null ? String.join(", ", editing.allowedNames) : "",
+                adminManage);
     }
 
     private GroupEditorScreen(Screen parent, SignalingClient.GroupInfo editing, boolean isPublic,
                               String nameValue, String allowedValue) {
+        this(parent, editing, isPublic, nameValue, allowedValue, false);
+    }
+
+    private GroupEditorScreen(Screen parent, SignalingClient.GroupInfo editing, boolean isPublic,
+                              String nameValue, String allowedValue, boolean adminManage) {
         super(Component.literal(editing == null ? "Create Voice Group" : "Edit Voice Group"));
         this.parent = parent;
         this.editing = editing;
         this.isPublic = isPublic;
+        this.adminManage = adminManage;
         this.nameValue = nameValue == null ? "" : nameValue;
         this.allowedValue = allowedValue == null ? "" : allowedValue;
         if (editing != null) {
-            this.status = editing.isPublic
+            this.status = adminManage
+                    ? "Admin edit: rename, visibility, and access."
+                    : (editing.isPublic
                     ? "Rename your public group."
-                    : "Rename and update who can join.";
+                    : "Rename and update who can join.");
         } else {
             this.status = "Create a public or private voice group.";
         }
     }
 
     private Screen backScreen() {
-        return parent instanceof VoiceScreen ? parent : new VoiceScreen();
+        return parent != null ? parent : new VoiceScreen();
     }
 
     @Override
@@ -89,14 +104,15 @@ public final class GroupEditorScreen extends Screen {
         addRenderableWidget(nameBox);
 
         int y = panelY + 68;
-        if (editing == null) {
+        if (editing == null || adminManage) {
             addRenderableWidget(new VoiceButton(
                     cx, y, cw, 20,
                     Component.literal(isPublic ? "Visibility: Public" : "Visibility: Private"),
                     isPublic ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
                     b -> minecraft.setScreen(new GroupEditorScreen(
-                            parent, null, !isPublic, nameBox.getValue(),
-                            allowedBox != null ? allowedBox.getValue() : allowedValue))));
+                            parent, editing, !isPublic, nameBox.getValue(),
+                            allowedBox != null ? allowedBox.getValue() : allowedValue,
+                            adminManage))));
             y += 28;
         } else {
             addRenderableWidget(new VoiceButton(
@@ -152,11 +168,36 @@ public final class GroupEditorScreen extends Screen {
         busy = true;
         if (editing != null) {
             status = "Saving…";
+            if (adminManage) {
+                JsonObject body = new JsonObject();
+                body.addProperty("groupId", editing.id);
+                body.addProperty("name", name);
+                body.addProperty("isPublic", isPublic);
+                if (!isPublic) {
+                    JsonArray arr = new JsonArray();
+                    for (String n : allowed) {
+                        arr.add(n);
+                    }
+                    body.add("allowedNames", arr);
+                }
+                signaling.adminPost("/api/admin/groups/update", body, res -> {
+                    if (minecraft != null) {
+                        minecraft.execute(() -> {
+                            signaling.refreshGroups();
+                            minecraft.setScreen(backScreen());
+                        });
+                    }
+                }, err -> {
+                    busy = false;
+                    status = "Save failed: " + err;
+                });
+                return;
+            }
             signaling.updateGroup(editing.id, name, editing.isPublic ? List.of() : allowed, () -> {
                 if (minecraft != null) {
                     minecraft.execute(() -> {
                         signaling.refreshGroups();
-                        minecraft.setScreen(new VoiceScreen());
+                        minecraft.setScreen(backScreen());
                     });
                 }
             }, err -> {
@@ -238,7 +279,7 @@ public final class GroupEditorScreen extends Screen {
                         minecraft.execute(() -> {
                             TwoptwotVoiceClient.get().controller().setChannel("group:" + groupId, true);
                             signaling.refreshGroups();
-                            minecraft.setScreen(new VoiceScreen());
+                            minecraft.setScreen(backScreen());
                         });
                     }
                 }, err -> {

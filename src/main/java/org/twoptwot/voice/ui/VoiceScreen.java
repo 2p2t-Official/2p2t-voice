@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.audio.VoiceController;
 import org.twoptwot.voice.net.SignalingClient;
+import org.twoptwot.voice.ui.menu.MenuChrome;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,7 +39,7 @@ public final class VoiceScreen extends Screen {
     private String menuStatus = "";
 
     public VoiceScreen() {
-        super(Component.literal("2p2t Voice"));
+        super(Component.literal("2p2t Voice Chat"));
     }
 
     @Override
@@ -522,8 +523,12 @@ public final class VoiceScreen extends Screen {
         VoiceUi.accentBar(graphics, panelX + 1, panelY + 1, panelW - 2);
         VoiceUi.sidebar(graphics, panelX, panelY + 26, sideW, panelH - 26);
 
-        String title = controller.getName().isBlank() ? "2p2t Voice" : "2p2t Voice  ·  " + controller.getName();
-        graphics.drawString(font, title, panelX + 10, panelY + 8, VoiceUi.TEXT, false);
+        String title = controller.getName().isBlank() ? "2p2t Voice Chat" : "2p2t Voice Chat  ·  " + controller.getName();
+        int logoSize = 10;
+        int logoX = panelX + 8;
+        int logoY = panelY + 7;
+        MenuChrome.drawRoundedLogo(graphics, logoX, logoY, logoSize, VoiceUi.BG_SHELL);
+        graphics.drawString(font, title, logoX + logoSize + 5, panelY + 8, VoiceUi.TEXT, false);
 
         String statusLine = controller.getStatus();
         if (controller.isServerMuted()) {
@@ -538,7 +543,7 @@ public final class VoiceScreen extends Screen {
         graphics.drawString(font, statusLine, statusX, statusY, VoiceUi.TEXT_DIM, false);
 
         if (controller.config().hudDebug) {
-            String meta = "peers " + controller.getPeerCount();
+            String meta = "players " + controller.getPeerCount();
             if (TwoptwotVoiceClient.get().webRtc().isAvailable()) {
                 meta += "  ·  RTC " + TwoptwotVoiceClient.get().webRtc().connectedPeerCount();
                 String path = TwoptwotVoiceClient.get().webRtc().pathSummary();

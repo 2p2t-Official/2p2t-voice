@@ -400,6 +400,17 @@ public final class WebRtcEngine {
         return n;
     }
 
+    private String connectedStatus() {
+        int n = connectedPeerCount();
+        if (n <= 0) {
+            return "Connected";
+        }
+        if (n == 1) {
+            return "Connected · 1 other";
+        }
+        return "Connected · " + n + " others";
+    }
+
     public String pathSummary() {
         maybeRefreshPathStats();
         return pathSummary;
@@ -846,9 +857,9 @@ public final class WebRtcEngine {
             LOG.info("PC state " + owner.uuid + " -> " + state);
             if (state == RTCPeerConnectionState.CONNECTED) {
                 owner.iceFailRetries = 0;
-                controller.setStatus("Voice linked (" + connectedPeerCount() + " peers)");
+                controller.setStatus(connectedStatus());
             } else if (state == RTCPeerConnectionState.FAILED) {
-                controller.setStatus("Voice ICE failed — retrying " + owner.name);
+                controller.setStatus("Reconnecting to " + owner.name + "…");
                 String id = owner.uuid;
                 String name = owner.name;
                 int retries = owner.iceFailRetries;

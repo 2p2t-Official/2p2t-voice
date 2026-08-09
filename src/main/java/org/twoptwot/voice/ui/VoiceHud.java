@@ -99,7 +99,7 @@ public final class VoiceHud {
             String path = TwoptwotVoiceClient.get().webRtc().isAvailable()
                     ? TwoptwotVoiceClient.get().webRtc().pathSummary()
                     : "";
-            line2 = (on ? "Connected" : "Offline") + "  ·  peers " + controller.getPeerCount() + "  ·  " + rtc;
+            line2 = (on ? "Connected" : "Offline") + "  ·  " + controller.getPeerCount() + " players  ·  " + rtc;
             if (path != null && !path.isBlank() && !"path:off".equals(path)) {
                 line2 += "  ·  " + path.replace("path:", "");
             }

@@ -5,7 +5,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
-import org.twoptwot.voice.VoiceDebug;
 import org.twoptwot.voice.audio.VoiceController;
 import org.twoptwot.voice.update.ModUpdater;
 import org.twoptwot.voice.webrtc.AudioDevices;
@@ -36,7 +35,7 @@ public final class VoiceSettingsScreen extends Screen {
         inputs = AudioDevices.listInputs();
         outputs = AudioDevices.listOutputs();
         panelW = Math.min(340, width - 40);
-        panelH = Math.min(548, height - 20);
+        panelH = Math.min(520, height - 20);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
 
@@ -199,13 +198,6 @@ public final class VoiceSettingsScreen extends Screen {
                 }));
         updateNowBtn.active = ModUpdater.isUpdateAvailable();
         y += 24;
-
-        addRenderableWidget(new VoiceButton(
-                cx, y, 88, 16,
-                Component.literal("Debug folder"),
-                VoiceButton.Style.QUIET,
-                b -> VoiceDebug.openFolder()));
-        y += 22;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw / 2 - 4, 22,

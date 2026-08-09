@@ -14,14 +14,21 @@ import java.util.List;
 
 public final class VoiceAdminScreen extends Screen {
 
+    private enum Tab {
+        CLIENTS,
+        GROUPS
+    }
+
     private final Screen parent;
     private final SignalingClient signaling = TwoptwotVoiceClient.get().signaling();
     private final List<AdminClient> clients = new ArrayList<>();
+    private final List<AdminGroup> groups = new ArrayList<>();
     private String status = "Loading…";
     private String turnStatus = "TURN: …";
     private int selected;
     private int scroll;
     private long lastRefreshMs;
+    private Tab tab = Tab.CLIENTS;
 
     private static final String[] MOVE_CHANNELS = {
             "lobby", "global", "proximity", "spawn", "staff"
@@ -32,45 +39,76 @@ public final class VoiceAdminScreen extends Screen {
         this.parent = parent;
     }
 
+    private VoiceAdminScreen(Screen parent, Tab tab) {
+        this(parent);
+        this.tab = tab;
+    }
+
+    private void openTab(Tab next) {
+        minecraft.setScreen(new VoiceAdminScreen(parent, next));
+    }
+
     @Override
     protected void init() {
         refresh();
-        int panelW = Math.min(520, width - 24);
-        int panelH = Math.min(360, height - 24);
+        int panelW = Math.min(540, width - 24);
+        int panelH = Math.min(380, height - 24);
         int panelX = (width - panelW) / 2;
         int panelY = (height - panelH) / 2;
+
+        addRenderableWidget(new VoiceButton(panelX + 12, panelY + 8, 70, 18,
+                Component.literal("Clients"),
+                tab == Tab.CLIENTS ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
+                b -> openTab(Tab.CLIENTS)));
+        addRenderableWidget(new VoiceButton(panelX + 86, panelY + 8, 70, 18,
+                Component.literal("Groups"),
+                tab == Tab.GROUPS ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
+                b -> openTab(Tab.GROUPS)));
+
         int y = panelY + panelH - 52;
+        if (tab == Tab.CLIENTS) {
+            addRenderableWidget(new VoiceButton(panelX + 12, y, 70, 20, Component.literal("Refresh"),
+                    VoiceButton.Style.GHOST, b -> refresh()));
+            addRenderableWidget(new VoiceButton(panelX + 88, y, 70, 20, Component.literal("TURN"),
+                    VoiceButton.Style.QUIET, b -> checkTurn()));
 
-        addRenderableWidget(new VoiceButton(panelX + 12, y, 70, 20, Component.literal("Refresh"),
-                VoiceButton.Style.GHOST, b -> refresh()));
-        addRenderableWidget(new VoiceButton(panelX + 88, y, 70, 20, Component.literal("TURN"),
-                VoiceButton.Style.QUIET, b -> checkTurn()));
+            int bx = panelX + 170;
+            for (String ch : MOVE_CHANNELS) {
+                String label = switch (ch) {
+                    case "global" -> "Global";
+                    case "proximity" -> "Prox";
+                    case "spawn" -> "Spawn";
+                    case "staff" -> "Staff";
+                    default -> "Lobby";
+                };
+                addRenderableWidget(new VoiceButton(bx, y, 52, 20, Component.literal(label),
+                        VoiceButton.Style.GHOST, b -> moveSelected(ch)));
+                bx += 56;
+            }
 
-        int bx = panelX + 170;
-        for (String ch : MOVE_CHANNELS) {
-            String label = switch (ch) {
-                case "global" -> "Global";
-                case "proximity" -> "Prox";
-                case "spawn" -> "Spawn";
-                case "staff" -> "Staff";
-                default -> "Lobby";
-            };
-            addRenderableWidget(new VoiceButton(bx, y, 52, 20, Component.literal(label),
-                    VoiceButton.Style.GHOST, b -> moveSelected(ch)));
-            bx += 56;
+            y += 24;
+            addRenderableWidget(new VoiceButton(panelX + 12, y, 90, 20, Component.literal("Server Mute"),
+                    VoiceButton.Style.DANGER, b -> serverMute(true)));
+            addRenderableWidget(new VoiceButton(panelX + 108, y, 100, 20, Component.literal("Server Unmute"),
+                    VoiceButton.Style.PRIMARY, b -> serverMute(false)));
+            addRenderableWidget(new VoiceButton(panelX + 214, y, 90, 20, Component.literal("Force Deaf"),
+                    VoiceButton.Style.DANGER, b -> serverDeaf(true)));
+            addRenderableWidget(new VoiceButton(panelX + 310, y, 100, 20, Component.literal("Force Undeaf"),
+                    VoiceButton.Style.PRIMARY, b -> serverDeaf(false)));
+            addRenderableWidget(new VoiceButton(panelX + panelW - 72, y, 60, 20, Component.literal("Back"),
+                    VoiceButton.Style.QUIET, b -> minecraft.setScreen(parent)));
+        } else {
+            addRenderableWidget(new VoiceButton(panelX + 12, y, 70, 20, Component.literal("Refresh"),
+                    VoiceButton.Style.GHOST, b -> refresh()));
+            addRenderableWidget(new VoiceButton(panelX + 88, y, 70, 20, Component.literal("Edit"),
+                    VoiceButton.Style.PRIMARY, b -> editSelectedGroup()));
+            addRenderableWidget(new VoiceButton(panelX + 164, y, 70, 20, Component.literal("Delete"),
+                    VoiceButton.Style.DANGER, b -> deleteSelectedGroup()));
+            addRenderableWidget(new VoiceButton(panelX + 240, y, 90, 20, Component.literal("+ Create"),
+                    VoiceButton.Style.GHOST, b -> minecraft.setScreen(new GroupEditorScreen(this))));
+            addRenderableWidget(new VoiceButton(panelX + panelW - 72, y, 60, 20, Component.literal("Back"),
+                    VoiceButton.Style.QUIET, b -> minecraft.setScreen(parent)));
         }
-
-        y += 24;
-        addRenderableWidget(new VoiceButton(panelX + 12, y, 90, 20, Component.literal("Server Mute"),
-                VoiceButton.Style.DANGER, b -> serverMute(true)));
-        addRenderableWidget(new VoiceButton(panelX + 108, y, 100, 20, Component.literal("Server Unmute"),
-                VoiceButton.Style.PRIMARY, b -> serverMute(false)));
-        addRenderableWidget(new VoiceButton(panelX + 214, y, 90, 20, Component.literal("Force Deaf"),
-                VoiceButton.Style.DANGER, b -> serverDeaf(true)));
-        addRenderableWidget(new VoiceButton(panelX + 310, y, 100, 20, Component.literal("Force Undeaf"),
-                VoiceButton.Style.PRIMARY, b -> serverDeaf(false)));
-        addRenderableWidget(new VoiceButton(panelX + panelW - 72, y, 60, 20, Component.literal("Back"),
-                VoiceButton.Style.QUIET, b -> minecraft.setScreen(parent)));
     }
 
     private void refresh() {
@@ -106,6 +144,7 @@ public final class VoiceAdminScreen extends Screen {
 
     private void applyStatus(JsonObject res) {
         clients.clear();
+        groups.clear();
         JsonArray arr = res.has("clients") && res.get("clients").isJsonArray()
                 ? res.getAsJsonArray("clients") : null;
         if (arr != null) {
@@ -132,10 +171,48 @@ public final class VoiceAdminScreen extends Screen {
             }
             return a.name.compareToIgnoreCase(b.name);
         });
-        if (selected >= clients.size()) {
-            selected = Math.max(0, clients.size() - 1);
+
+        JsonArray garr = res.has("groups") && res.get("groups").isJsonArray()
+                ? res.getAsJsonArray("groups") : null;
+        if (garr != null) {
+            for (JsonElement el : garr) {
+                if (el == null || !el.isJsonObject()) {
+                    continue;
+                }
+                JsonObject g = el.getAsJsonObject();
+                AdminGroup ag = new AdminGroup();
+                ag.id = str(g, "id");
+                ag.name = str(g, "name");
+                ag.ownerName = str(g, "ownerName");
+                ag.ownerUuid = str(g, "ownerUuid");
+                ag.isPublic = bool(g, "isPublic");
+                ag.memberCount = g.has("memberCount") ? g.get("memberCount").getAsInt() : 0;
+                JsonArray allowed = g.has("allowedNames") && g.get("allowedNames").isJsonArray()
+                        ? g.getAsJsonArray("allowedNames") : null;
+                if (allowed != null) {
+                    for (JsonElement nameEl : allowed) {
+                        if (nameEl != null && nameEl.isJsonPrimitive()) {
+                            String n = nameEl.getAsString();
+                            if (n != null && !n.isBlank()) {
+                                ag.allowedNames.add(n.trim());
+                            }
+                        }
+                    }
+                }
+                if (!ag.id.isBlank()) {
+                    groups.add(ag);
+                }
+            }
         }
-        status = clients.size() + " clients";
+        groups.sort((a, b) -> a.name.compareToIgnoreCase(b.name));
+
+        int size = tab == Tab.CLIENTS ? clients.size() : groups.size();
+        if (selected >= size) {
+            selected = Math.max(0, size - 1);
+        }
+        status = tab == Tab.CLIENTS
+                ? (clients.size() + " clients")
+                : (groups.size() + " groups");
     }
 
     private void moveSelected(String channel) {
@@ -205,6 +282,36 @@ public final class VoiceAdminScreen extends Screen {
         });
     }
 
+    private void editSelectedGroup() {
+        AdminGroup g = selectedGroup();
+        if (g == null) {
+            return;
+        }
+        minecraft.setScreen(new GroupEditorScreen(this, g.toGroupInfo(), true));
+    }
+
+    private void deleteSelectedGroup() {
+        AdminGroup g = selectedGroup();
+        if (g == null) {
+            return;
+        }
+        status = "Deleting " + g.name + "…";
+        JsonObject body = new JsonObject();
+        body.addProperty("groupId", g.id);
+        signaling.adminPost("/api/admin/groups/delete", body, res -> {
+            if (minecraft != null) {
+                minecraft.execute(() -> {
+                    status = "Deleted " + g.name;
+                    refresh();
+                });
+            }
+        }, err -> {
+            if (minecraft != null) {
+                minecraft.execute(() -> status = "Delete failed: " + err);
+            }
+        });
+    }
+
     private AdminClient selectedClient() {
         if (selected < 0 || selected >= clients.size()) {
             status = "Select a client first";
@@ -213,20 +320,29 @@ public final class VoiceAdminScreen extends Screen {
         return clients.get(selected);
     }
 
+    private AdminGroup selectedGroup() {
+        if (selected < 0 || selected >= groups.size()) {
+            status = "Select a group first";
+            return null;
+        }
+        return groups.get(selected);
+    }
+
     @Override
     public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-        int panelW = Math.min(520, width - 24);
-        int panelH = Math.min(360, height - 24);
+        int panelW = Math.min(540, width - 24);
+        int panelH = Math.min(380, height - 24);
         int panelX = (width - panelW) / 2;
         int panelY = (height - panelH) / 2;
-        int listTop = panelY + 48;
+        int listTop = panelY + 52;
         int rowH = 14;
         int visible = 12;
         double mx = event.x();
         double my = event.y();
         if (mx >= panelX + 12 && mx <= panelX + panelW - 12 && my >= listTop && my < listTop + visible * rowH) {
             int idx = scroll + (int) ((my - listTop) / rowH);
-            if (idx >= 0 && idx < clients.size()) {
+            int size = tab == Tab.CLIENTS ? clients.size() : groups.size();
+            if (idx >= 0 && idx < size) {
                 selected = idx;
                 return true;
             }
@@ -236,7 +352,8 @@ public final class VoiceAdminScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        int max = Math.max(0, clients.size() - 12);
+        int size = tab == Tab.CLIENTS ? clients.size() : groups.size();
+        int max = Math.max(0, size - 12);
         scroll = (int) Math.max(0, Math.min(max, scroll - (int) Math.signum(scrollY)));
         return true;
     }
@@ -251,44 +368,62 @@ public final class VoiceAdminScreen extends Screen {
         if (System.currentTimeMillis() - lastRefreshMs > 8000L) {
             refresh();
         }
-        int panelW = Math.min(520, width - 24);
-        int panelH = Math.min(360, height - 24);
+        int panelW = Math.min(540, width - 24);
+        int panelH = Math.min(380, height - 24);
         int panelX = (width - panelW) / 2;
         int panelY = (height - panelH) / 2;
         VoiceUi.panel(graphics, panelX, panelY, panelW, panelH);
         VoiceUi.accentBar(graphics, panelX + 1, panelY + 1, panelW - 2);
-        graphics.drawString(font, "Voice Admin", panelX + 14, panelY + 10, VoiceUi.TEXT, false);
-        graphics.drawString(font, status, panelX + 120, panelY + 10, VoiceUi.TEXT_DIM, false);
-        graphics.drawString(font, turnStatus, panelX + 14, panelY + 24, VoiceUi.TEXT_FAINT, false);
+        graphics.drawString(font, "Voice Admin", panelX + 170, panelY + 12, VoiceUi.TEXT, false);
+        graphics.drawString(font, status, panelX + 280, panelY + 12, VoiceUi.TEXT_DIM, false);
+        graphics.drawString(font, turnStatus, panelX + 14, panelY + 32, VoiceUi.TEXT_FAINT, false);
 
-        int listTop = panelY + 48;
+        int listTop = panelY + 52;
         int rowH = 14;
         int visible = 12;
-        for (int i = 0; i < visible; i++) {
-            int idx = scroll + i;
-            if (idx >= clients.size()) {
-                break;
+        if (tab == Tab.CLIENTS) {
+            for (int i = 0; i < visible; i++) {
+                int idx = scroll + i;
+                if (idx >= clients.size()) {
+                    break;
+                }
+                AdminClient c = clients.get(idx);
+                int y = listTop + i * rowH;
+                if (idx == selected) {
+                    graphics.fill(panelX + 12, y - 1, panelX + panelW - 12, y + rowH - 1, VoiceUi.BG_ROW_HOT);
+                }
+                String flags = "";
+                if (c.serverMuted) {
+                    flags += " SM";
+                }
+                if (c.deafened) {
+                    flags += " DF";
+                }
+                if (c.muted) {
+                    flags += " M";
+                }
+                if (c.speaking) {
+                    flags += " *";
+                }
+                String line = c.name + "  ·  " + VoiceUi.channelTitle(c.channel) + flags;
+                graphics.drawString(font, line, panelX + 16, y, idx == selected ? VoiceUi.GOLD : VoiceUi.TEXT, false);
             }
-            AdminClient c = clients.get(idx);
-            int y = listTop + i * rowH;
-            if (idx == selected) {
-                graphics.fill(panelX + 12, y - 1, panelX + panelW - 12, y + rowH - 1, VoiceUi.BG_ROW_HOT);
+        } else {
+            for (int i = 0; i < visible; i++) {
+                int idx = scroll + i;
+                if (idx >= groups.size()) {
+                    break;
+                }
+                AdminGroup g = groups.get(idx);
+                int y = listTop + i * rowH;
+                if (idx == selected) {
+                    graphics.fill(panelX + 12, y - 1, panelX + panelW - 12, y + rowH - 1, VoiceUi.BG_ROW_HOT);
+                }
+                String vis = g.isPublic ? "public" : "private";
+                String line = g.name + "  ·  " + vis + "  ·  owner " + g.ownerName
+                        + "  ·  " + g.memberCount + " online";
+                graphics.drawString(font, line, panelX + 16, y, idx == selected ? VoiceUi.GOLD : VoiceUi.TEXT, false);
             }
-            String flags = "";
-            if (c.serverMuted) {
-                flags += " SM";
-            }
-            if (c.deafened) {
-                flags += " DF";
-            }
-            if (c.muted) {
-                flags += " M";
-            }
-            if (c.speaking) {
-                flags += " *";
-            }
-            String line = c.name + "  ·  " + VoiceUi.channelTitle(c.channel) + flags;
-            graphics.drawString(font, line, panelX + 16, y, idx == selected ? VoiceUi.GOLD : VoiceUi.TEXT, false);
         }
         super.render(graphics, mouseX, mouseY, partialTick);
     }
@@ -314,5 +449,28 @@ public final class VoiceAdminScreen extends Screen {
         boolean deafened;
         boolean speaking;
         boolean muted;
+    }
+
+    private static final class AdminGroup {
+        String id = "";
+        String name = "";
+        String ownerName = "";
+        String ownerUuid = "";
+        boolean isPublic;
+        int memberCount;
+        final List<String> allowedNames = new ArrayList<>();
+
+        SignalingClient.GroupInfo toGroupInfo() {
+            SignalingClient.GroupInfo info = new SignalingClient.GroupInfo();
+            info.id = id;
+            info.name = name;
+            info.ownerName = ownerName;
+            info.isPublic = isPublic;
+            info.isOwner = true;
+            info.joined = false;
+            info.memberCount = memberCount;
+            info.allowedNames.addAll(allowedNames);
+            return info;
+        }
     }
 }

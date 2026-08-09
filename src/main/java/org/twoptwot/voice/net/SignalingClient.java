@@ -64,14 +64,14 @@ public final class SignalingClient {
         this.wsUrl = wsUrl;
         this.sessionId = sessionId;
         String full = wsUrl.contains("?") ? wsUrl + "&sessionId=" + sessionId : wsUrl + "?sessionId=" + sessionId;
-        controller.setStatus("Connecting voice...");
+        controller.setStatus("Connecting…");
         io.execute(() -> {
             try {
                 WsClient client = new WsClient(URI.create(full));
                 this.ws = client;
                 client.connectBlocking();
             } catch (Exception e) {
-                controller.setStatus("Voice WS failed: " + e.getMessage());
+                controller.setStatus("Couldn't connect: " + e.getMessage());
             }
         });
     }
@@ -92,7 +92,7 @@ public final class SignalingClient {
         }
         controller.setConnected(false);
         if (reason != null && !"reconnect".equals(reason) && !"left_server".equals(reason)) {
-            controller.setStatus("Voice disconnected (" + reason + ")");
+            controller.setStatus("Disconnected");
         }
     }
 
@@ -469,9 +469,9 @@ public final class SignalingClient {
                     }
                     controller.setConnected(true);
                     if (webRtc != null && !webRtc.isAvailable()) {
-                        controller.setStatus("Voice OK (no audio yet): " + webRtc.initError());
+                        controller.setStatus("Connected, but audio isn't ready yet");
                     } else {
-                        controller.setStatus("Voice connected");
+                        controller.setStatus("Connected");
                     }
                     sendReady();
                     refreshGroups();
@@ -544,11 +544,11 @@ public final class SignalingClient {
                                 ? detail
                                 : "You do not have permission for that channel.");
                     } else {
-                        controller.setStatus("Voice error: " + err);
+                        controller.setStatus("Error: " + err);
                     }
                 }
                 case "voice-blocked" -> {
-                    controller.setStatus("Voice blocked: " + optString(msg, "reason", "not_in_game"));
+                    controller.setStatus("Voice blocked until you're in the game.");
                     disconnect("voice_blocked");
                 }
                 case "group-invite" -> {
@@ -592,7 +592,7 @@ public final class SignalingClient {
         } catch (Exception e) {
 
             LOG.log(Level.WARNING, "Failed handling voice message: " + e.getMessage(), e);
-            controller.setStatus("Voice msg error: " + e.getClass().getSimpleName());
+            controller.setStatus("Connection error.");
         }
     }
 
@@ -772,7 +772,7 @@ public final class SignalingClient {
 
         @Override
         public void onOpen(ServerHandshake handshakedata) {
-            controller.setStatus("Voice socket open");
+            controller.setStatus("Connecting…");
         }
 
         @Override
@@ -783,7 +783,7 @@ public final class SignalingClient {
         @Override
         public void onClose(int code, String reason, boolean remote) {
             controller.setConnected(false);
-            controller.setStatus("Voice closed (" + code + ")");
+            controller.setStatus("Disconnected");
         }
 
         @Override
@@ -793,7 +793,7 @@ public final class SignalingClient {
                 detail = ex == null ? "unknown" : ex.getClass().getSimpleName();
             }
             LOG.log(Level.WARNING, "Voice WebSocket error", ex);
-            controller.setStatus("Voice WS error: " + detail);
+            controller.setStatus("Connection error: " + detail);
         }
     }
 

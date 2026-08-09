@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "twoptwotvoice",
   "version": "${version}",
-  "name": "2p2t Voice",
+  "name": "2p2t Voice Chat",
   "description": "In-game proximity voice chat compatible with voice.2p2t.org browser clients.",
   "authors": ["2p2t"],
   "contact": {

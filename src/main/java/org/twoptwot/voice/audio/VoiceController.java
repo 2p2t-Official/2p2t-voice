@@ -15,7 +15,7 @@ public final class VoiceController {
     private String uuid = "";
     private String name = "";
     private String apiBase = "https://voice.2p2t.org";
-    private String status = "Voice idle";
+    private String status = "Not connected";
     private String channel = "global";
     private boolean connected;
     private boolean muted;
@@ -33,12 +33,12 @@ public final class VoiceController {
     }
 
     public void onJoinWorld() {
-        status = "Joined world — requesting voice...";
+        status = "Connecting…";
     }
 
     public void onLeaveWorld() {
         connected = false;
-        status = "Left server";
+        status = "Disconnected";
         speaking = false;
         pttHeld = false;
     }
@@ -109,7 +109,7 @@ public final class VoiceController {
 
     public void leaveChannel(boolean notifyServer) {
         setChannel("lobby", notifyServer);
-        setStatus("Left channel — waiting in lobby.");
+        setStatus("Left channel.");
     }
 
     public boolean canAccessStaffChannel() {
