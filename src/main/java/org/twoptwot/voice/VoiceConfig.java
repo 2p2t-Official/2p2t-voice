@@ -58,6 +58,7 @@ public final class VoiceConfig {
     public String outputDeviceId = "";
     public boolean noiseSuppression = true;
     public boolean autoUpdate = true;
+    public boolean brandedMenus = false;
     public long lastUpdateCheckMs = 0L;
     public long lastUpdateMs = 0L;
     public String lastUpdateType = "";

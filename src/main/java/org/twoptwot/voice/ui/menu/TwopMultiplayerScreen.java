@@ -92,12 +92,6 @@ public final class TwopMultiplayerScreen extends Screen {
         int top = Math.max(18, height / 12);
         MenuChrome.drawLogo(graphics, width / 2, top, logoSize);
         graphics.drawCenteredString(font, title, width / 2, top + logoSize + 8, VoiceUi.GOLD);
-        graphics.drawCenteredString(
-                font,
-                Component.literal("Use Join 2p2t.org for voice. Other servers ignore this mod."),
-                width / 2,
-                top + logoSize + 20,
-                VoiceUi.TEXT_DIM);
     }
 
     @Override
