@@ -92,8 +92,9 @@ def port(mc: str) -> None:
             text = text.replace("minecraft.setScreen(", "minecraft.gui.setScreen(")
             text = text.replace("client.setScreen(", "client.gui.setScreen(")
             text = text.replace("mc.setScreen(", "mc.gui.setScreen(")
-            text = re.sub(r"\bclient\.screen\b", "client.gui.screen()", text)
-            text = re.sub(r"\bmc\.screen\b", "mc.gui.screen()", text)
+            # Avoid rewriting package names like api.client.screen.v1
+            text = re.sub(r"(?<!\.)\bclient\.screen\b", "client.gui.screen()", text)
+            text = re.sub(r"(?<!\.)\bmc\.screen\b", "mc.gui.screen()", text)
             text = text.replace("mc.options.hideGui", "mc.gui.hud.isHidden()")
 
         if text != orig:
