@@ -46,8 +46,12 @@ public final class ServerDirectory {
             dirty = true;
         }
         ServerData official = list.get(found);
-        if (official.name == null || official.name.isBlank() || "Minecraft Server".equalsIgnoreCase(official.name)) {
+        if (!OFFICIAL_NAME.equals(official.name)) {
             official.name = OFFICIAL_NAME;
+            dirty = true;
+        }
+        if (official.ip == null || official.ip.isBlank()) {
+            official.ip = OFFICIAL_ADDRESS;
             dirty = true;
         }
         while (found > 0) {

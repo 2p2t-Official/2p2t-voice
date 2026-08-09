@@ -54,4 +54,26 @@ public final class MenuChrome {
             graphics.drawString(font, status, width - sw - 8, height - 12, VoiceUi.TEXT_DIM, false);
         }
     }
+
+    public static void drawServerListChrome(GuiGraphics graphics, Font font, int width, int height, int headerH, int footerH, float ticks) {
+        drawBackdrop(graphics, width, height, ticks);
+        graphics.fill(0, 0, width, headerH, 0xF00C1018);
+        graphics.fill(0, headerH - 1, width, headerH, VoiceUi.GOLD);
+        graphics.fill(0, height - footerH, width, height, 0xF00C1018);
+        graphics.fill(0, height - footerH, width, height - footerH + 1, VoiceUi.ACCENT_DIM);
+
+        int listTop = headerH + 4;
+        int listBottom = height - footerH - 4;
+        int listLeft = 12;
+        int listRight = width - 12;
+        if (listBottom > listTop + 8) {
+            VoiceUi.panel(graphics, listLeft, listTop, listRight - listLeft, listBottom - listTop);
+        }
+
+        int logo = 22;
+        int logoY = Math.max(4, (headerH - logo) / 2);
+        drawLogo(graphics, 18 + logo / 2, logoY, logo);
+        graphics.drawString(font, "2p2t Server List", 18 + logo + 10, headerH / 2 - 4, VoiceUi.GOLD, false);
+        graphics.drawString(font, "Official server pinned at top", 18 + logo + 10, headerH / 2 + 6, VoiceUi.TEXT_DIM, false);
+    }
 }
