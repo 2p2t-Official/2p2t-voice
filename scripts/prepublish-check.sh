@@ -36,13 +36,14 @@ for req in \
   src/main/resources/assets/twoptwotvoice/textures/gui/menu_bg.png \
   src/main/java/org/twoptwot/voice/ui/menu/TwopTitleScreen.java \
   src/main/java/org/twoptwot/voice/ui/menu/TwopMultiplayerScreen.java \
-  src/main/java/org/twoptwot/voice/ui/menu/TwopJoinMultiplayerScreen.java
+  src/main/java/org/twoptwot/voice/ui/menu/TwopJoinMultiplayerScreen.java \
+  src/main/java/org/twoptwot/voice/ui/menu/MenuBootstrap.java
 do
   [[ -f "$req" ]] || fail "missing $req"
 done
 
-grep -q 'MenuScreens.register' src/main/java/org/twoptwot/voice/TwoptwotVoiceClient.java \
-  || fail "MenuScreens not registered"
+grep -q 'MenuBootstrap.register' src/main/java/org/twoptwot/voice/TwoptwotVoiceClient.java \
+  || fail "MenuBootstrap not registered"
 
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}"
 export PATH="$JAVA_HOME/bin:$PATH"
