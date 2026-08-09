@@ -52,23 +52,24 @@ public final class TwoptwotVoiceClient implements ClientModInitializer {
                 }
                 activeOnServer = true;
                 controller.onJoinWorld();
-                pluginBridge.requestSession();
+                pluginBridge.onJoin();
             });
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             client.execute(() -> {
                 activeOnServer = false;
+                pluginBridge.onLeave();
                 silentShutdown();
                 controller.onLeaveWorld();
             });
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-
             VoiceKeybinds.tick(client, controller, signaling);
             if (!activeOnServer || !ServerGate.isAllowed()) {
                 return;
             }
+            pluginBridge.tick();
             controller.tick(client);
         });
 

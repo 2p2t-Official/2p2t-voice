@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import org.twoptwot.voice.TwoptwotVoiceClient;
 import org.twoptwot.voice.VoiceConfig;
+import org.twoptwot.voice.VoiceDebug;
 import org.twoptwot.voice.audio.VoiceController;
 import org.twoptwot.voice.update.ModUpdater;
 import org.twoptwot.voice.webrtc.AudioDevices;
@@ -18,6 +19,7 @@ public final class VoiceSettingsScreen extends Screen {
     private final VoiceConfig config = controller.config();
     private List<AudioDevices.Device> inputs = AudioDevices.listInputs();
     private List<AudioDevices.Device> outputs = AudioDevices.listOutputs();
+    private VoiceButton updateNowBtn;
 
     private int panelX;
     private int panelY;
@@ -34,7 +36,7 @@ public final class VoiceSettingsScreen extends Screen {
         inputs = AudioDevices.listInputs();
         outputs = AudioDevices.listOutputs();
         panelW = Math.min(340, width - 40);
-        panelH = Math.min(520, height - 20);
+        panelH = Math.min(548, height - 20);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
 
@@ -186,19 +188,24 @@ public final class VoiceSettingsScreen extends Screen {
                 Component.literal("Check updates"),
                 VoiceButton.Style.GHOST,
                 b -> ModUpdater.checkAsync(true)));
-        addRenderableWidget(new VoiceButton(
+        updateNowBtn = addRenderableWidget(new VoiceButton(
                 cx + cw / 2 + 4, y, cw / 2 - 4, 20,
-                Component.literal("Update now"),
-                VoiceButton.Style.PRIMARY,
+                Component.literal(ModUpdater.isUpdateAvailable() ? "Update now" : "Up to date"),
+                ModUpdater.isUpdateAvailable() ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
                 b -> {
-                    if (ModUpdater.isUpdateAvailable()
-                            || (ModUpdater.latestTag() != null && !ModUpdater.latestTag().isBlank())) {
+                    if (ModUpdater.isUpdateAvailable()) {
                         ModUpdater.applyUpdateAsync(true);
-                    } else {
-                        ModUpdater.checkAsync(true);
                     }
                 }));
-        y += 26;
+        updateNowBtn.active = ModUpdater.isUpdateAvailable();
+        y += 24;
+
+        addRenderableWidget(new VoiceButton(
+                cx, y, 88, 16,
+                Component.literal("Debug folder"),
+                VoiceButton.Style.QUIET,
+                b -> VoiceDebug.openFolder()));
+        y += 22;
 
         addRenderableWidget(new VoiceButton(
                 cx, y, cw / 2 - 4, 22,
@@ -216,6 +223,18 @@ public final class VoiceSettingsScreen extends Screen {
                 Component.literal("X"),
                 VoiceButton.Style.QUIET,
                 b -> minecraft.setScreen(parent)));
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (updateNowBtn == null) {
+            return;
+        }
+        boolean avail = ModUpdater.isUpdateAvailable();
+        updateNowBtn.active = avail;
+        updateNowBtn.setMessage(Component.literal(avail ? "Update now" : "Up to date"));
+        updateNowBtn.setStyle(avail ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
     }
 
     @Override

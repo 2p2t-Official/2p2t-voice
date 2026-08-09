@@ -45,7 +45,7 @@ public final class VoiceButton extends AbstractWidget {
 
     @Override
     protected void renderWidget(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        boolean hot = isHoveredOrFocused();
+        boolean hot = active && isHoveredOrFocused();
         int bg;
         int fg = VoiceUi.TEXT;
         int border = VoiceUi.BORDER_SOFT;
@@ -71,6 +71,11 @@ public final class VoiceButton extends AbstractWidget {
                     fg = VoiceUi.GOLD;
                 }
             }
+        }
+        if (!active) {
+            bg = VoiceUi.BG_CHIP;
+            fg = VoiceUi.TEXT_FAINT;
+            border = VoiceUi.BORDER_SOFT;
         }
         g.fill(getX(), getY(), getX() + width, getY() + height, bg);
         g.fill(getX(), getY(), getX() + width, getY() + 1, border);
