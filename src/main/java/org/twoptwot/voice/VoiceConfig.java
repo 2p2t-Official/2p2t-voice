@@ -20,7 +20,7 @@ public final class VoiceConfig {
     public int proximityRange = 48;
     public float masterVolume = 1.0f;
     public float micVolume = 1.0f;
-    
+
     public float vadThreshold = 0.02f;
     public boolean pttTones = true;
 
@@ -34,7 +34,6 @@ public final class VoiceConfig {
         return Math.max(VAD_MIN, Math.min(VAD_MAX, vadThreshold));
     }
 
-    
     public float sensitivity01() {
         float t = normalizedVadThreshold();
         return 1f - (t - VAD_MIN) / (VAD_MAX - VAD_MIN);
@@ -47,12 +46,12 @@ public final class VoiceConfig {
     }
     public boolean hudEnabled = true;
     public boolean hudDebug = false;
-    
+
     public Boolean hudSpeaking = Boolean.TRUE;
-    
+
     public int hudX = 4;
     public int hudY = 4;
-    
+
     public int speakingHudX = -1;
     public int speakingHudY = -1;
     public String inputDeviceId = "";

@@ -64,7 +64,6 @@ public final class WebRtcNatives {
         String uniqueName = resource + "." + ProcessHandle.current().pid() + "." + UUID.randomUUID();
         Path dest = dir.resolve(uniqueName);
 
-        
         Optional<ModContainer> mod = FabricLoader.getInstance().getModContainer(TwoptwotVoiceClient.MOD_ID);
         if (mod.isPresent()) {
             Optional<Path> embedded = mod.get().findPath(resource);
@@ -82,7 +81,6 @@ public final class WebRtcNatives {
             }
         }
 
-        
         try (InputStream in = openResource(resource)) {
             if (in != null) {
                 try {
@@ -95,7 +93,6 @@ public final class WebRtcNatives {
             }
         }
 
-        
         Path tmp = Files.createTempFile("twoptwotvoice-", "-" + resource);
         try (InputStream in = openResource(resource)) {
             if (in == null) {

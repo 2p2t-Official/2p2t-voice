@@ -8,13 +8,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src" / "main" / "java"
 
-
 def ver_tuple(v: str) -> tuple:
     parts = [int(x) for x in v.split(".")]
     while len(parts) < 3:
         parts.append(0)
     return tuple(parts)
-
 
 def rename_gui_graphics(text: str) -> str:
     text = text.replace(
@@ -23,7 +21,6 @@ def rename_gui_graphics(text: str) -> str:
     )
     text = re.sub(r"(?<![A-Za-z])GuiGraphics(?!Extractor)", "GuiGraphicsExtractor", text)
     return text
-
 
 def port(mc: str) -> None:
     use_gui_set_screen = ver_tuple(mc) >= ver_tuple("26.2")
@@ -54,7 +51,6 @@ def port(mc: str) -> None:
 
         text = rename_gui_graphics(text)
 
-        # 26.x renamed player-face HUD helper + draw -> extractRenderState
         text = text.replace(
             "import net.minecraft.client.gui.components.PlayerFaceRenderer;",
             "import net.minecraft.client.gui.components.PlayerFaceExtractor;",
@@ -96,14 +92,12 @@ def port(mc: str) -> None:
             path.write_text(text)
             print(f"ported {path.relative_to(ROOT)}")
 
-
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: port-to-26.py <mc_version>", file=sys.stderr)
         return 2
     port(sys.argv[1])
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

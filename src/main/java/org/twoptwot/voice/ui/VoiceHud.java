@@ -246,11 +246,6 @@ public final class VoiceHud {
         }
     }
 
-    /**
-     * Direct {@link PlayerSkin} / {@link PlayerFaceRenderer} calls (Loom-remapped).
-     * Do not resolve skins via reflection on Mojang names — those break at runtime under
-     * intermediary mappings and always fell back to Steve.
-     */
     private static void drawHead(GuiGraphics graphics, Minecraft mc, String uuidStr, String name, int x, int y) {
         try {
             PlayerFaceRenderer.draw(graphics, resolvePlayerSkin(mc, uuidStr, name), x, y, 8);
@@ -284,7 +279,6 @@ public final class VoiceHud {
             }
         }
 
-        // Prefer UUID lookup; avoid getDefaultSkin() (missing on early 1.21.x).
         return DefaultPlayerSkin.get(uuid != null ? uuid : new UUID(0L, 0L));
     }
 

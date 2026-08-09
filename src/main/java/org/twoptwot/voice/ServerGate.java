@@ -54,7 +54,7 @@ public final class ServerGate {
             host = host.substring(0, slash);
         }
         int colon = host.lastIndexOf(':');
-        
+
         if (colon > 0 && host.indexOf(']') < 0 && host.indexOf('.') >= 0) {
             host = host.substring(0, colon);
         }

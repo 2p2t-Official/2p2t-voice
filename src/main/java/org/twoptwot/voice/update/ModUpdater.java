@@ -209,7 +209,7 @@ public final class ModUpdater {
         JsonArray assets = root.has("assets") ? root.getAsJsonArray("assets") : new JsonArray();
         String assetName = "";
         String assetUrl = "";
-        // Prefer an exact +<mc>.jar match; never let "1.21" steal "1.21.10".
+
         for (JsonElement el : assets) {
             if (!el.isJsonObject()) continue;
             JsonObject a = el.getAsJsonObject();
@@ -228,7 +228,6 @@ public final class ModUpdater {
         return new CheckResult(cleanTag, assetName, assetUrl, newer);
     }
 
-    /** Exact game-version match for release asset names like twoptwotvoice-1.2.8+1.21.4.jar */
     static boolean matchesMinecraftExact(String assetName, String mcVersion) {
         String n = assetName.toLowerCase(Locale.ROOT);
         for (String mc : mcVersionCandidates(mcVersion)) {
@@ -242,7 +241,6 @@ public final class ModUpdater {
         return false;
     }
 
-    /** @deprecated use {@link #matchesMinecraftExact(String, String)} */
     static boolean matchesMinecraft(String assetName, String mcVersion) {
         return matchesMinecraftExact(assetName, mcVersion);
     }
@@ -253,7 +251,7 @@ public final class ModUpdater {
         if (!mc.isEmpty()) {
             out.add(mc);
         }
-        // Launchers sometimes report 1.21.0 while release assets use +1.21.jar
+
         if (mc.endsWith(".0") && mc.chars().filter(ch -> ch == '.').count() >= 2) {
             String trimmed = mc.substring(0, mc.length() - 2);
             if (!trimmed.isEmpty() && !out.contains(trimmed)) {
@@ -322,7 +320,7 @@ public final class ModUpdater {
             Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
             return target;
         } catch (Exception replaceFail) {
-            // Windows locks the jar that Fabric already loaded — install beside it instead.
+
             Path loaded = currentLoadedJar();
             if (loaded != null && pathsEqual(loaded, target)) {
                 Path alt = mods.resolve(assetName.replace(".jar", "") + "-update.jar");

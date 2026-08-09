@@ -65,7 +65,7 @@ public final class WebRtcEngine {
         stun.urls.add("stun:stun.l.google.com:19302");
         defaults.add(stun);
         rtcConfig.iceServers = defaults;
-        
+
         rtcConfig.iceTransportPolicy = RTCIceTransportPolicy.ALL;
     }
 
@@ -85,9 +85,6 @@ public final class WebRtcEngine {
         try {
             WebRtcNatives.ensureLoaded();
 
-            
-            
-            
             HeadlessAudioDeviceModule module = new HeadlessAudioDeviceModule();
             module.initRecording();
             module.startRecording();
@@ -144,7 +141,7 @@ public final class WebRtcEngine {
                         urls.add(o.get("urls").getAsString());
                     }
                 }
-                
+
                 for (String url : urls) {
                     if (url == null || url.isBlank()) {
                         continue;
@@ -166,7 +163,7 @@ public final class WebRtcEngine {
             return;
         }
         rtcConfig.iceServers = servers;
-        
+
         if (!peers.isEmpty()) {
             List<String[]> snapshot = new ArrayList<>();
             for (Map.Entry<String, PeerConnection> e : peers.entrySet()) {
@@ -234,7 +231,7 @@ public final class WebRtcEngine {
         if (uuid == null || uuid.isBlank() || uuid.equalsIgnoreCase(controller.getUuid())) {
             return;
         }
-        
+
         if (isSelfEchoPeer(uuid, name)) {
             removePeer(uuid);
             return;
@@ -269,7 +266,7 @@ public final class WebRtcEngine {
             if (a.equals(b)) {
                 return true;
             }
-            
+
         }
         return false;
     }
@@ -403,7 +400,6 @@ public final class WebRtcEngine {
         return n;
     }
 
-    
     public String pathSummary() {
         maybeRefreshPathStats();
         return pathSummary;
@@ -433,7 +429,7 @@ public final class WebRtcEngine {
             pathSummary = "path:relay";
             return;
         }
-        
+
         if (pathSummary.contains("relay")) {
             return;
         }
@@ -459,7 +455,7 @@ public final class WebRtcEngine {
     }
 
     private void disposeAudio() {
-        
+
         JavaSoundAudio sound = javaSound;
         javaSound = null;
         try {
@@ -468,7 +464,7 @@ public final class WebRtcEngine {
             }
         } catch (Throwable ignored) {
         }
-        
+
         try {
             Thread.sleep(50L);
         } catch (InterruptedException e) {
@@ -686,7 +682,7 @@ public final class WebRtcEngine {
             if (!(track instanceof AudioTrack audio) || javaSound == null) {
                 return;
             }
-            
+
             if (isLocalMicTrack(audio)) {
                 LOG.warning("Refusing to play local mic track as remote for " + name);
                 return;
@@ -699,7 +695,7 @@ public final class WebRtcEngine {
             if (audio == null) {
                 return true;
             }
-            
+
             return localTrack != null && (audio == localTrack || audio.equals(localTrack));
         }
 
@@ -767,7 +763,7 @@ public final class WebRtcEngine {
                         || "succeeded".equals(String.valueOf(state))
                         || "in-progress".equals(String.valueOf(state));
                 if (!ok && nominated == null && state == null) {
-                    
+
                     Object selected = attrs.get("selected");
                     ok = Boolean.TRUE.equals(selected);
                 }

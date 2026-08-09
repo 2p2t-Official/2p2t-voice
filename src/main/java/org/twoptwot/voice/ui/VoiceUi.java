@@ -7,28 +7,27 @@ import net.minecraft.util.Mth;
 
 public final class VoiceUi {
 
-    
     public static final int BG_VOID = 0xCC0C1016;
-    public static final int BG_SHELL = 0xEB12161C;      
-    public static final int BG_SIDE = 0xF00E1218;       
+    public static final int BG_SHELL = 0xEB12161C;
+    public static final int BG_SIDE = 0xF00E1218;
     public static final int BG_PANEL = 0xF5141A22;
     public static final int BG_ROW = 0xE0141A22;
     public static final int BG_ROW_HOT = 0xE01A2838;
     public static final int BG_CHIP = 0xF0141A22;
-    public static final int BORDER = 0x1AFFFFFF;        
+    public static final int BORDER = 0x1AFFFFFF;
     public static final int BORDER_SOFT = 0xFF1A222C;
     public static final int LINE = 0x19FFFFFF;
-    public static final int GOLD = 0xFF6B9FD4;          
-    public static final int ACCENT = 0xFF3D6A9E;        
+    public static final int GOLD = 0xFF6B9FD4;
+    public static final int ACCENT = 0xFF3D6A9E;
     public static final int ACCENT_DIM = 0xFF2A4A6E;
-    public static final int ACCENT_BRIGHT = 0xFF5088BF; 
+    public static final int ACCENT_BRIGHT = 0xFF5088BF;
     public static final int ACCENT_GLOW = 0x336B9FD4;
-    public static final int TEXT = 0xFFE8EAED;          
-    public static final int TEXT_DIM = 0xFF8A939E;      
+    public static final int TEXT = 0xFFE8EAED;
+    public static final int TEXT_DIM = 0xFF8A939E;
     public static final int TEXT_FAINT = 0xFF6A737E;
-    public static final int DANGER = 0xFFC45A6A;        
+    public static final int DANGER = 0xFFC45A6A;
     public static final int WARN = 0xFFFFC857;
-    public static final int SPEAK = 0xFF4ADE80;         
+    public static final int SPEAK = 0xFF4ADE80;
     public static final int MUTED = 0xFFC45A6A;
 
     private VoiceUi() {

@@ -118,7 +118,7 @@ public final class VoiceScreen extends Screen {
         }
 
         cy += 4;
-        
+
         rebuildGroupButtons(cy + 10);
 
         addRenderableWidget(new VoiceButton(
@@ -141,7 +141,6 @@ public final class VoiceScreen extends Screen {
                 VoiceButton.Style.QUIET,
                 b -> TwoptwotVoiceClient.get().pluginBridge().requestSession()));
 
-        // Peers first, then tabs, so tab widgets stay above the list for hit-testing/render.
         rebuildPeers();
         ensureRoomTabs(listX);
     }
@@ -151,7 +150,7 @@ public final class VoiceScreen extends Screen {
     }
 
     private int roomTabY() {
-        // Below status text (panelY+50) with a clear gap.
+
         return panelY + 66;
     }
 
@@ -159,7 +158,6 @@ public final class VoiceScreen extends Screen {
         return 18;
     }
 
-    /** Peer rows start below the In Channel / Everyone tabs. */
     private int peerListTop() {
         return roomTabY() + roomTabH() + 6;
     }
@@ -281,7 +279,7 @@ public final class VoiceScreen extends Screen {
 
         int count = 0;
         if (group.isOwner) {
-            count += group.isPublic ? 2 : 3; 
+            count += group.isPublic ? 2 : 3;
         }
         boolean inGroup = group.channelId().equals(controller.getChannel()) || group.joined;
         if (inGroup) {
@@ -472,7 +470,7 @@ public final class VoiceScreen extends Screen {
             py += 28;
         }
         lastPeerFingerprint = fp.toString();
-        // Keep tabs above freshly rebuilt rows.
+
         if (channelTab != null || everyoneTab != null) {
             ensureRoomTabs(listX);
         }

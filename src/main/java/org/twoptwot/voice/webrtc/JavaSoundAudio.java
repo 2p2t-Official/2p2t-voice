@@ -23,7 +23,7 @@ public final class JavaSoundAudio {
     private static final int CHANNELS = 1;
     private static final int BITS = 16;
     private static final int BYTES_PER_SAMPLE = BITS / 8;
-    private static final int FRAME_SAMPLES = SAMPLE_RATE / 100; 
+    private static final int FRAME_SAMPLES = SAMPLE_RATE / 100;
     private static final int FRAME_BYTES = FRAME_SAMPLES * CHANNELS * BYTES_PER_SAMPLE;
 
     private final CustomAudioSource customSource = new CustomAudioSource();
@@ -51,7 +51,6 @@ public final class JavaSoundAudio {
     private volatile boolean restartPlayback;
     private float hpPrevIn;
     private float hpPrevOut;
-
 
     public void setInputDeviceId(String id) {
         String next = id == null ? "" : id;
@@ -102,7 +101,7 @@ public final class JavaSoundAudio {
     public synchronized void stop() {
         running.set(false);
         captureEnabled.set(false);
-        
+
         synchronized (pushLock) {
             sourceAlive.set(false);
         }
@@ -346,7 +345,6 @@ public final class JavaSoundAudio {
         }
     }
 
-    
     private void applyNoiseSuppression(byte[] pcm, int len) {
         final float alpha = 0.995f;
         for (int i = 0; i + 1 < len; i += 2) {
@@ -400,7 +398,6 @@ public final class JavaSoundAudio {
         return (float) Math.sqrt(sum / samples);
     }
 
-    
     private boolean updateVad(float level) {
         smoothedLevel = smoothedLevel > 0f ? smoothedLevel * 0.68f + level * 0.32f : level;
         float base = vadThreshold > 0f ? vadThreshold : 0.02f;
@@ -465,7 +462,7 @@ public final class JavaSoundAudio {
 
         @Override
         public void onData(byte[] data, int bitsPerSample, int sampleRate, int channels, int frames) {
-            
+
             if (closed || !running.get() || volume <= 0.01f || data == null || data.length == 0) {
                 return;
             }

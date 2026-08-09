@@ -9,6 +9,7 @@ import org.twoptwot.voice.net.PluginBridge;
 import org.twoptwot.voice.net.SignalingClient;
 import org.twoptwot.voice.ui.VoiceHud;
 import org.twoptwot.voice.ui.VoiceKeybinds;
+import org.twoptwot.voice.ui.menu.MenuScreens;
 import org.twoptwot.voice.update.ModUpdater;
 import org.twoptwot.voice.webrtc.WebRtcEngine;
 
@@ -40,6 +41,7 @@ public final class TwoptwotVoiceClient implements ClientModInitializer {
 
         VoiceKeybinds.register(controller, signaling);
         pluginBridge.register();
+        MenuScreens.register();
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             client.execute(() -> {
@@ -62,7 +64,7 @@ public final class TwoptwotVoiceClient implements ClientModInitializer {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            
+
             VoiceKeybinds.tick(client, controller, signaling);
             if (!activeOnServer || !ServerGate.isAllowed()) {
                 return;

@@ -27,10 +27,8 @@ for arg in "$@"; do
   esac
 done
 
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Working tree is dirty. Commit (or stash) before releasing so matrix restores are clean." >&2
-  git status --short >&2
-  exit 1
+if [[ "${PREPUBLISH_SKIP:-0}" != "1" ]]; then
+  ./scripts/prepublish-check.sh
 fi
 
 MOD_VERSION="$(grep '^mod_version=' gradle.properties | cut -d= -f2)"

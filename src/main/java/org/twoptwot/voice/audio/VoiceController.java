@@ -55,13 +55,13 @@ public final class VoiceController {
         if (client.player == null) {
             return;
         }
-        
+
         boolean liveSpeaking = TwoptwotVoiceClient.get().webRtc().isLocalSpeaking();
         if (liveSpeaking != speaking) {
             speaking = liveSpeaking;
             TwoptwotVoiceClient.get().signaling().sendMic();
         }
-        
+
         if ("spawn".equals(channel) && !isWithinSpawnRange(client)) {
             setChannel("lobby", true);
             setStatus(SPAWN_TOO_FAR_LEFT);
@@ -89,7 +89,6 @@ public final class VoiceController {
         return Math.hypot(x, z) <= SPAWN_CHANNEL_RADIUS;
     }
 
-    
     public boolean trySetChannel(String next, boolean notifyServer) {
         if ("spawn".equals(next) && !isWithinSpawnRange(Minecraft.getInstance())) {
             setStatus(SPAWN_TOO_FAR_JOIN);
@@ -108,7 +107,6 @@ public final class VoiceController {
         return true;
     }
 
-    
     public void leaveChannel(boolean notifyServer) {
         setChannel("lobby", notifyServer);
         setStatus("Left channel — waiting in lobby.");
@@ -145,7 +143,7 @@ public final class VoiceController {
     public void setChannel(String channel, boolean notifyServer) {
         this.channel = channel == null || channel.isBlank() ? "global" : channel;
         if (notifyServer) {
-            
+
             TwoptwotVoiceClient.get().webRtc().clearPeers();
             TwoptwotVoiceClient.get().signaling().sendSettings();
         }
@@ -155,7 +153,7 @@ public final class VoiceController {
         if (muted || serverMuted || deafened) {
             return false;
         }
-        
+
         if ("ptt".equalsIgnoreCase(config.mode)) {
             return pttHeld;
         }

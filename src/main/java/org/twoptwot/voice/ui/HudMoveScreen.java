@@ -69,7 +69,7 @@ public final class HudMoveScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (event.button() == 0 && hud != null) {
-            
+
             if (hud.hitSpeak(event.x(), event.y())) {
                 dragging = DragTarget.SPEAK;
                 grabDx = event.x() - hud.speakX();

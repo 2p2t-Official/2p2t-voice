@@ -135,7 +135,6 @@ public final class SignalingClient {
         send(msg);
     }
 
-
     public void inviteToGroup(String groupId, String targetUuid, Runnable onSuccess, Consumer<String> onError) {
         io.execute(() -> {
             try {
@@ -446,7 +445,7 @@ public final class SignalingClient {
                     }
                     JsonArray ice = optArray(msg, "iceServers");
                     if (webRtc != null) {
-                        
+
                         if (ice != null) {
                             webRtc.setIceServers(ice);
                         }
@@ -591,7 +590,7 @@ public final class SignalingClient {
                 }
             }
         } catch (Exception e) {
-            
+
             LOG.log(Level.WARNING, "Failed handling voice message: " + e.getMessage(), e);
             controller.setStatus("Voice msg error: " + e.getClass().getSimpleName());
         }
@@ -628,7 +627,7 @@ public final class SignalingClient {
             if (channel != null) {
                 info.channel = channel;
             }
-            
+
             boolean samePerson = controller.getName() != null
                     && info.name != null
                     && controller.getName().equalsIgnoreCase(info.name);
@@ -676,7 +675,7 @@ public final class SignalingClient {
             }
             PeerInfo info = peers.computeIfAbsent(uuid, PeerInfo::new);
             float volume = optFloat(p, "volume", 0f);
-            
+
             if (fullVolume) {
                 volume = 1f;
             }

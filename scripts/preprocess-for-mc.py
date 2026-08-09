@@ -10,7 +10,6 @@ SRC = ROOT / "src" / "main" / "java"
 
 MOUSE = r"(?:net\.minecraft\.client\.input\.)?MouseButtonEvent"
 
-
 def ver_tuple(v: str) -> tuple:
     if v.startswith("26.") or v.startswith("25."):
         parts = v.split(".")
@@ -20,7 +19,6 @@ def ver_tuple(v: str) -> tuple:
         parts.append(0)
     return tuple(parts)
 
-
 def patch_files(mc: str) -> None:
     v = ver_tuple(mc)
     use_identifier = v >= ver_tuple("1.21.11")
@@ -28,9 +26,7 @@ def patch_files(mc: str) -> None:
     use_key_category = v >= ver_tuple("1.21.9")
     use_render_pipelines = v >= ver_tuple("1.21.6")
     use_render_type_blit = (not use_render_pipelines) and v >= ver_tuple("1.21.2")
-    # PlayerSkin moved client.resources -> world.entity.player in 1.21.9
     use_entity_player_skin = v >= ver_tuple("1.21.9")
-    # GameProfile.name() replaced getName() around the same cutover
     use_profile_name = v >= ver_tuple("1.21.9")
 
     for path in SRC.rglob("*.java"):
@@ -113,36 +109,29 @@ def patch_files(mc: str) -> None:
                 )
             if not use_profile_name:
                 text = text.replace("profile.name()", "profile.getName()")
-            if not use_render_pipelines:
+
+        if not use_render_pipelines and "RenderPipelines.GUI_TEXTURED" in text:
+            text = text.replace(
+                "import net.minecraft.client.renderer.RenderPipelines;\n",
+                "import net.minecraft.client.renderer.RenderType;\n"
+                if use_render_type_blit
+                else "",
+            )
+            if use_render_type_blit:
                 text = text.replace(
-                    "import net.minecraft.client.renderer.RenderPipelines;\n",
-                    "import net.minecraft.client.renderer.RenderType;\n"
-                    if use_render_type_blit
-                    else "",
+                    "graphics.blit(RenderPipelines.GUI_TEXTURED, ",
+                    "graphics.blit(RenderType::guiTextured, ",
                 )
-                if use_render_type_blit:
-                    text = text.replace(
-                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                        "graphics.blit(RenderType::guiTextured, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                    )
-                    text = text.replace(
-                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                        "graphics.blit(RenderType::guiTextured, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                    )
-                else:
-                    text = text.replace(
-                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                        "graphics.blit(skin, x, y, 8.0f, 8.0f, 8, 8, 64, 64);",
-                    )
-                    text = text.replace(
-                        "graphics.blit(RenderPipelines.GUI_TEXTURED, skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                        "graphics.blit(skin, x, y, 40.0f, 8.0f, 8, 8, 64, 64);",
-                    )
+            else:
+                text = re.sub(
+                    r"graphics\.blit\(RenderPipelines\.GUI_TEXTURED, ",
+                    "graphics.blit(",
+                    text,
+                )
 
         if text != orig:
             path.write_text(text)
             print(f"patched {path.relative_to(ROOT)}")
-
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -150,7 +139,6 @@ def main() -> int:
         return 2
     patch_files(sys.argv[1])
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
