@@ -7,7 +7,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.network.chat.Component;
 import org.twoptwot.voice.ui.VoiceButton;
-import org.twoptwot.voice.ui.VoiceUi;
 import org.twoptwot.voice.update.ModUpdater;
 
 import java.util.ArrayList;
@@ -62,20 +61,6 @@ public final class TwopJoinMultiplayerScreen extends JoinMultiplayerScreen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         super.render(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(0, 0, width, HEADER_H, 0xF00C1018);
-        graphics.fill(0, HEADER_H - 1, width, HEADER_H, VoiceUi.GOLD);
-        int logo = 22;
-        int logoY = Math.max(4, (HEADER_H - logo) / 2);
-        MenuChrome.drawLogo(graphics, 18 + logo / 2, logoY, logo);
-        graphics.drawString(font, "2p2t Server List", 18 + logo + 10, HEADER_H / 2 - 4, VoiceUi.GOLD, false);
-        graphics.drawString(font, "Official server pinned at top", 18 + logo + 10, HEADER_H / 2 + 6, VoiceUi.TEXT_DIM, false);
-
-        for (var child : children()) {
-            if (child instanceof VoiceButton button && button.getY() < HEADER_H) {
-                button.render(graphics, mouseX, mouseY, partialTick);
-            }
-        }
-
         if (ModUpdater.isUpdateAvailable()) {
             graphics.drawCenteredString(
                     font,
