@@ -9,7 +9,7 @@ import org.twoptwot.voice.net.PluginBridge;
 import org.twoptwot.voice.net.SignalingClient;
 import org.twoptwot.voice.ui.VoiceHud;
 import org.twoptwot.voice.ui.VoiceKeybinds;
-import org.twoptwot.voice.ui.menu.MenuScreens;
+import org.twoptwot.voice.ui.menu.MenuBootstrap;
 import org.twoptwot.voice.update.ModUpdater;
 import org.twoptwot.voice.webrtc.WebRtcEngine;
 
@@ -41,7 +41,7 @@ public final class TwoptwotVoiceClient implements ClientModInitializer {
 
         VoiceKeybinds.register(controller, signaling);
         pluginBridge.register();
-        MenuScreens.register();
+        MenuBootstrap.register();
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             client.execute(() -> {
