@@ -209,17 +209,31 @@ public final class ModUpdater {
         JsonArray assets = root.has("assets") ? root.getAsJsonArray("assets") : new JsonArray();
         String assetName = "";
         String assetUrl = "";
+        String fallbackName = "";
+        String fallbackUrl = "";
 
         for (JsonElement el : assets) {
             if (!el.isJsonObject()) continue;
             JsonObject a = el.getAsJsonObject();
             String name = a.has("name") ? a.get("name").getAsString() : "";
             String dl = a.has("browser_download_url") ? a.get("browser_download_url").getAsString() : "";
-            if (name.toLowerCase(Locale.ROOT).endsWith(".jar") && matchesMinecraftExact(name, mc)) {
+            if (!isVoiceReleaseAsset(name) || !matchesMinecraftExact(name, mc)) {
+                continue;
+            }
+            String lower = name.toLowerCase(Locale.ROOT);
+            if (lower.startsWith("2p2tvoice")) {
                 assetName = name;
                 assetUrl = dl;
                 break;
             }
+            if (fallbackUrl.isBlank()) {
+                fallbackName = name;
+                fallbackUrl = dl;
+            }
+        }
+        if (assetUrl.isBlank()) {
+            assetName = fallbackName;
+            assetUrl = fallbackUrl;
         }
         if (assetUrl.isBlank()) {
             throw new IllegalStateException("No jar for Minecraft " + mc + " in latest release");
@@ -330,7 +344,7 @@ public final class ModUpdater {
                 } catch (Exception altFail) {
                     tryDelete(tmp);
                     throw new IllegalStateException(
-                            "Close Minecraft, delete old twoptwotvoice jars in mods, then install from GitHub",
+                            "Close Minecraft, delete old 2p2tvoice/twoptwotvoice jars in mods, then install from GitHub",
                             altFail);
                 }
             }
@@ -420,7 +434,15 @@ public final class ModUpdater {
     }
 
     private static boolean isVoiceModJarName(String lowerFileName) {
-        return lowerFileName.startsWith("twoptwotvoice") && lowerFileName.endsWith(".jar");
+        if (!lowerFileName.endsWith(".jar")) {
+            return false;
+        }
+        return lowerFileName.startsWith("twoptwotvoice") || lowerFileName.startsWith("2p2tvoice");
+    }
+
+    private static boolean isVoiceReleaseAsset(String assetName) {
+        String n = assetName == null ? "" : assetName.toLowerCase(Locale.ROOT);
+        return isVoiceModJarName(n);
     }
 
     private static boolean pathsEqual(Path a, Path b) {

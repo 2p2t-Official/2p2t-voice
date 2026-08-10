@@ -16,7 +16,7 @@ Examples:
   ./scripts/build-one.sh 1.21.4
   ./scripts/build-one.sh 26.2
 
-The jar lands in dist/ as twoptwotvoice-<mod>+<minecraft>.jar
+The jar lands in dist/ as 2p2tvoice-<mod>+<minecraft>.jar
 EOF
   exit 1
 fi
@@ -94,7 +94,7 @@ loom_version=${LOOM}
 fabric_version=${API}
 mod_version=${MOD_VERSION}
 maven_group=org.twoptwot
-archives_base_name=twoptwotvoice
+archives_base_name=2p2tvoice
 EOF
 
 python3 - <<PY
@@ -123,13 +123,13 @@ else
   ./gradlew --no-daemon clean remapJar
 fi
 
-jar=$(ls -1 build/libs/twoptwotvoice-*.jar 2>/dev/null | grep -v sources | grep -v -- '-dev' | head -1 || true)
+jar=$(ls -1 build/libs/2p2tvoice-*.jar 2>/dev/null | grep -v sources | grep -v -- '-dev' | head -1 || true)
 if [[ -z "${jar:-}" ]]; then
   echo "Build finished but no jar was found in build/libs/" >&2
   exit 1
 fi
 
-out="$DIST/twoptwotvoice-${MOD_VERSION}+${MC}.jar"
+out="$DIST/2p2tvoice-${MOD_VERSION}+${MC}.jar"
 cp -f "$jar" "$out"
 echo
 echo "Built: $out"

@@ -40,7 +40,7 @@ loom_version=${LOOM}
 fabric_version=${fapi}
 mod_version=${MOD_VERSION}
 maven_group=org.twoptwot
-archives_base_name=twoptwotvoice
+archives_base_name=2p2tvoice
 EOF
 
   python3 - <<PY
@@ -59,9 +59,9 @@ PY
   export PATH="$JAVA_HOME/bin:$PATH"
 
   if ./gradlew --no-daemon clean jar -q; then
-    jar=$(ls -1 build/libs/twoptwotvoice-*.jar 2>/dev/null | grep -v sources | grep -v -- '-dev' | head -1 || true)
+    jar=$(ls -1 build/libs/2p2tvoice-*.jar 2>/dev/null | grep -v sources | grep -v -- '-dev' | head -1 || true)
     if [[ -n "${jar:-}" ]]; then
-      out="$DIST/twoptwotvoice-${MOD_VERSION}+${mc}.jar"
+      out="$DIST/2p2tvoice-${MOD_VERSION}+${mc}.jar"
       cp -f "$jar" "$out"
       echo "OK $out"
       echo "$mc" >> "$DIST/built-26.txt"
@@ -94,7 +94,7 @@ loom_version=1.16.3
 fabric_version=0.141.6+1.21.11
 mod_version=${MOD_VERSION}
 maven_group=org.twoptwot
-archives_base_name=twoptwotvoice
+archives_base_name=2p2tvoice
 EOF
 restore
 

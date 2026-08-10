@@ -78,7 +78,7 @@ fi
 missing=()
 jars=()
 for mc in "${EXPECTED[@]}"; do
-  jar="$DIST/twoptwotvoice-${MOD_VERSION}+${mc}.jar"
+  jar="$DIST/2p2tvoice-${MOD_VERSION}+${mc}.jar"
   if [[ -f "$jar" ]]; then
     jars+=("$jar")
   else
@@ -99,7 +99,7 @@ echo "All ${#jars[@]} release jars present for ${MOD_VERSION}."
 
 HASH_FILE="$DIST/voice-allowed-hashes-${MOD_VERSION}.txt"
 : > "$HASH_FILE"
-echo "# twoptwotvoice ${MOD_VERSION}" >> "$HASH_FILE"
+echo "# 2p2tvoice ${MOD_VERSION}" >> "$HASH_FILE"
 for jar in "${jars[@]}"; do
   python3 "$ROOT/scripts/jar-content-hash.py" "$jar" | awk '{print $1}' >> "$HASH_FILE"
 done
