@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "twoptwotvoice-loader",
+  "version": "${version}",
+  "name": "2p2t Voice Loader",
+  "description": "Downloads and loads the matching 2p2t Voice Chat jar for your Minecraft version.",
+  "authors": ["2p2t"],
+  "contact": {
+    "homepage": "https://github.com/2p2t-Official/2p2t-voice",
+    "sources": "https://github.com/2p2t-Official/2p2t-voice",
+    "issues": "https://github.com/2p2t-Official/2p2t-voice/issues"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "preLaunch": ["org.twoptwot.voice.loader.VoicePreLaunch"],
+    "client": ["org.twoptwot.voice.loader.VoiceLoaderClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21",
+    "java": ">=21"
+  }
+}

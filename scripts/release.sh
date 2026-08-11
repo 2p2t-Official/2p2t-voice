@@ -73,6 +73,8 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   ./scripts/build-versions.sh
   echo "=== Building 26.x matrix ==="
   ./scripts/build-26.sh
+  echo "=== Building loader ==="
+  ./scripts/build-loader.sh
 fi
 
 missing=()
@@ -86,6 +88,13 @@ for mc in "${EXPECTED[@]}"; do
   fi
 done
 
+LOADER_JAR="$DIST/twoptwotvoice-loader-${MOD_VERSION}.jar"
+if [[ ! -f "$LOADER_JAR" ]]; then
+  echo "Release aborted: missing loader jar $LOADER_JAR" >&2
+  exit 1
+fi
+jars+=("$LOADER_JAR")
+
 if ((${#missing[@]} > 0)); then
   echo "Release aborted: missing jars for: ${missing[*]}" >&2
   echo "Failed 1.21.x:" >&2
@@ -95,12 +104,16 @@ if ((${#missing[@]} > 0)); then
   exit 1
 fi
 
-echo "All ${#jars[@]} release jars present for ${MOD_VERSION}."
+echo "All $((${#jars[@]})) release jars present for ${MOD_VERSION} (including loader)."
 
 HASH_FILE="$DIST/voice-allowed-hashes-${MOD_VERSION}.txt"
 : > "$HASH_FILE"
 echo "# 2p2tvoice ${MOD_VERSION}" >> "$HASH_FILE"
 for jar in "${jars[@]}"; do
+  base="$(basename "$jar")"
+  if [[ "$base" == *loader* ]]; then
+    continue
+  fi
   python3 "$ROOT/scripts/jar-content-hash.py" "$jar" | awk '{print $1}' >> "$HASH_FILE"
 done
 echo "Wrote $HASH_FILE"
@@ -125,9 +138,12 @@ if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
 fi
 
 if [[ -z "$NOTES" ]]; then
-  NOTES="2p2t Voice ${MOD_VERSION}
+  NOTES="2p2t Voice Chat ${MOD_VERSION}
 
-Grab the jar for your Minecraft version."
+Recommended: install twoptwotvoice-loader-${MOD_VERSION}.jar + Fabric API.
+The loader downloads the matching build for your Minecraft version on launch.
+
+Versioned jars (2p2tvoice-${MOD_VERSION}+<mc>.jar) are still available for direct install."
 fi
 
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then

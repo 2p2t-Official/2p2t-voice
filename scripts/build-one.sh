@@ -64,6 +64,7 @@ fi
 
 restore() {
   git checkout -- src/main/java src/main/resources/fabric.mod.json gradle.properties build.gradle 2>/dev/null || true
+  python3 "$ROOT/scripts/restore-identifier-baseline.py" >/dev/null 2>&1 || true
 }
 
 cleanup() {

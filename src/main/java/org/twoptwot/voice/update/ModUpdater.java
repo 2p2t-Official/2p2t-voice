@@ -72,10 +72,52 @@ public final class ModUpdater {
     }
 
     public static String installedVersion() {
-        return FabricLoader.getInstance()
+        Optional<String> fromMod = FabricLoader.getInstance()
                 .getModContainer(TwoptwotVoiceClient.MOD_ID)
+                .map(c -> c.getMetadata().getVersion().getFriendlyString());
+        if (fromMod.isPresent() && !isLoaderMode()) {
+            return fromMod.get();
+        }
+        String prop = System.getProperty("twoptwotvoice.payload.version", "");
+        if (prop != null && !prop.isBlank() && !"unknown".equalsIgnoreCase(prop)) {
+            return prop;
+        }
+        String stamped = readStampVersion();
+        if (stamped != null && !stamped.isBlank()) {
+            return stamped;
+        }
+        if (fromMod.isPresent()) {
+            return fromMod.get();
+        }
+        return FabricLoader.getInstance()
+                .getModContainer("twoptwotvoice-loader")
                 .map(c -> c.getMetadata().getVersion().getFriendlyString())
                 .orElse("unknown");
+    }
+
+    public static boolean isLoaderMode() {
+        return "true".equalsIgnoreCase(System.getProperty("twoptwotvoice.loader.mode", ""));
+    }
+
+    private static Path payloadDir() {
+        return FabricLoader.getInstance().getConfigDir().resolve("twoptwotvoice").resolve("payload");
+    }
+
+    private static Path payloadStampPath() {
+        return payloadDir().resolve("payload.stamp");
+    }
+
+    private static String readStampVersion() {
+        try {
+            Path stamp = payloadStampPath();
+            if (!Files.isRegularFile(stamp)) {
+                return null;
+            }
+            List<String> lines = Files.readAllLines(stamp);
+            return lines.isEmpty() ? null : lines.get(0).trim();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public static void cleanupStaleJarsOnStartup() {
@@ -97,6 +139,9 @@ public final class ModUpdater {
                     continue;
                 }
                 if (!isVoiceModJarName(lower)) {
+                    continue;
+                }
+                if (isLoaderJarName(lower)) {
                     continue;
                 }
                 if (currentJar != null && pathsEqual(currentJar, path)) {
@@ -169,15 +214,21 @@ public final class ModUpdater {
         final String tag = latestTag;
         CompletableFuture.runAsync(() -> {
             try {
-                Path installed = installJar(url, asset);
-                retireOtherVoiceJars(FabricLoader.getInstance().getGameDir().resolve("mods"), installed);
-                registerShutdownCleanup();
+                Path installed;
+                if (isLoaderMode()) {
+                    installed = installPayloadJar(url, asset, tag);
+                    statusLine = "Installed " + tag + " → restart Minecraft to load the new voice build.";
+                } else {
+                    installed = installJar(url, asset);
+                    retireOtherVoiceJars(FabricLoader.getInstance().getGameDir().resolve("mods"), installed);
+                    registerShutdownCleanup();
+                    statusLine = "Installed " + tag + " → restart Minecraft (old jar removed on exit).";
+                }
                 VoiceConfig config = TwoptwotVoiceClient.get().config();
                 config.lastUpdateMs = System.currentTimeMillis();
                 config.lastUpdateType = wasManual ? "manual" : "auto";
                 config.lastUpdateVersion = tag;
                 config.save();
-                statusLine = "Installed " + tag + " → restart Minecraft (old jar removed on exit).";
                 updateAvailable = false;
             } catch (Exception e) {
                 statusLine = "Update failed: " + shortMsg(e);
@@ -311,6 +362,37 @@ public final class ModUpdater {
         return out;
     }
 
+    private static Path installPayloadJar(String url, String assetName, String tag) throws Exception {
+        Path dir = payloadDir();
+        Files.createDirectories(dir);
+        String mc = minecraftVersion();
+        Path target = dir.resolve("twoptwotvoice-+" + mc.replaceAll("[^a-zA-Z0-9._-]", "_") + ".jar");
+        Path tmp = dir.resolve(target.getFileName().toString() + ".download");
+        Path meta = dir.resolve(target.getFileName().toString().replace(".jar", ".meta"));
+        HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
+                .connectTimeout(Duration.ofSeconds(15)).build();
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMinutes(3))
+                .header("User-Agent", "twoptwotvoice-updater")
+                .GET()
+                .build();
+        HttpResponse<InputStream> res = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
+        if (res.statusCode() < 200 || res.statusCode() >= 300) {
+            throw new IllegalStateException("Download HTTP " + res.statusCode());
+        }
+        try (InputStream in = res.body()) {
+            Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
+        }
+        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        Files.writeString(meta, (tag == null ? "" : tag) + "\n" + assetName + "\n");
+        Files.writeString(payloadStampPath(), (tag == null ? "" : tag) + "\n" + target.toAbsolutePath().normalize());
+        System.setProperty("twoptwotvoice.payload.path", target.toAbsolutePath().normalize().toString());
+        if (tag != null && !tag.isBlank()) {
+            System.setProperty("twoptwotvoice.payload.version", tag);
+        }
+        return target;
+    }
+
     private static Path installJar(String url, String assetName) throws Exception {
         Path mods = FabricLoader.getInstance().getGameDir().resolve("mods");
         Files.createDirectories(mods);
@@ -367,6 +449,9 @@ public final class ModUpdater {
                         continue;
                     }
                     String lower = path.getFileName().toString().toLowerCase(Locale.ROOT);
+                    if (isLoaderJarName(lower)) {
+                        continue;
+                    }
                     if (!isVoiceModJarName(lower) && !lower.endsWith(".jar.delete")
                             && !lower.endsWith(".jar.old") && !lower.endsWith(".jar.disabled")) {
                         continue;
@@ -437,11 +522,24 @@ public final class ModUpdater {
         if (!lowerFileName.endsWith(".jar")) {
             return false;
         }
+        if (isLoaderJarName(lowerFileName)) {
+            return false;
+        }
         return lowerFileName.startsWith("twoptwotvoice") || lowerFileName.startsWith("2p2tvoice");
+    }
+
+    private static boolean isLoaderJarName(String lowerFileName) {
+        return lowerFileName.contains("twoptwotvoice-loader")
+                || lowerFileName.contains("2p2tvoice-loader")
+                || (lowerFileName.contains("loader") && (lowerFileName.startsWith("twoptwotvoice")
+                || lowerFileName.startsWith("2p2tvoice")));
     }
 
     private static boolean isVoiceReleaseAsset(String assetName) {
         String n = assetName == null ? "" : assetName.toLowerCase(Locale.ROOT);
+        if (isLoaderJarName(n)) {
+            return false;
+        }
         return isVoiceModJarName(n);
     }
 

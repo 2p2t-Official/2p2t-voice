@@ -25,10 +25,10 @@ if [[ -z "${VOICE_INTEGRITY_SECRET:-}" && -f "$ROOT/.integrity-secret" ]]; then
 fi
 [[ -n "${VOICE_INTEGRITY_SECRET:-}" ]] || fail "VOICE_INTEGRITY_SECRET missing"
 
-comment_hits="$(find src -name '*.java' -print0 | xargs -0 grep -nE '(^|[[:space:]])//|/\*|\*/' || true)"
+comment_hits="$(find src loader/src -name '*.java' -print0 2>/dev/null | xargs -0 grep -nE '(^|[[:space:]])//|/\*|\*/' || true)"
 if [[ -n "$comment_hits" ]]; then
   echo "$comment_hits" >&2
-  fail "Java comments found under src/"
+  fail "Java comments found under src/ or loader/src/"
 fi
 
 for req in \
@@ -37,19 +37,29 @@ for req in \
   src/main/java/org/twoptwot/voice/ui/menu/TwopTitleScreen.java \
   src/main/java/org/twoptwot/voice/ui/menu/TwopMultiplayerScreen.java \
   src/main/java/org/twoptwot/voice/ui/menu/TwopJoinMultiplayerScreen.java \
-  src/main/java/org/twoptwot/voice/ui/menu/MenuBootstrap.java
+  src/main/java/org/twoptwot/voice/ui/menu/MenuBootstrap.java \
+  src/main/java/org/twoptwot/voice/ClasspathAssets.java \
+  loader/src/main/java/org/twoptwot/voice/loader/VoicePreLaunch.java \
+  loader/src/main/java/org/twoptwot/voice/loader/KnotInjector.java \
+  loader/src/main/resources/fabric.mod.json
 do
   [[ -f "$req" ]] || fail "missing $req"
 done
 
 grep -q 'MenuBootstrap.register' src/main/java/org/twoptwot/voice/TwoptwotVoiceClient.java \
   || fail "MenuBootstrap not registered"
+grep -q 'ClasspathAssets.register' src/main/java/org/twoptwot/voice/TwoptwotVoiceClient.java \
+  || fail "ClasspathAssets not registered"
 
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}"
 export PATH="$JAVA_HOME/bin:$PATH"
 
 echo "Smoke compile current matrix target..."
 ./gradlew compileJava --no-daemon -q
+
+echo "Smoke build loader..."
+./scripts/build-loader.sh >/tmp/voice-prepublish-loader.log 2>&1 \
+  || { tail -40 /tmp/voice-prepublish-loader.log >&2; fail "build-loader failed"; }
 
 echo "Smoke build 1.21.1..."
 ./scripts/build-one.sh 1.21.1 >/tmp/voice-prepublish-1.21.1.log 2>&1 \
@@ -59,6 +69,7 @@ echo "Smoke build 26.1..."
 ./scripts/build-one.sh 26.1 >/tmp/voice-prepublish-26.1.log 2>&1 \
   || { tail -40 /tmp/voice-prepublish-26.1.log >&2; fail "build-one 26.1 failed"; }
 
+[[ -f "dist/twoptwotvoice-loader-${MOD_VERSION}.jar" ]] || fail "missing loader jar"
 [[ -f "dist/2p2tvoice-${MOD_VERSION}+1.21.1.jar" ]] || fail "missing 1.21.1 jar"
 [[ -f "dist/2p2tvoice-${MOD_VERSION}+26.1.jar" ]] || fail "missing 26.1 jar"
 

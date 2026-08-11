@@ -30,6 +30,7 @@ public final class TwoptwotVoiceClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         instance = this;
+        ClasspathAssets.register();
         ModUpdater.cleanupStaleJarsOnStartup();
         config = VoiceConfig.load();
         controller = new VoiceController(config);
