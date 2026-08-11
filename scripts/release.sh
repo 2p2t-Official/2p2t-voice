@@ -137,11 +137,11 @@ if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
 fi
 
 if [[ -z "$NOTES" ]]; then
-  NOTES="1.2.15
+  NOTES="${MOD_VERSION}
 
-Install 2p2tvoice-0-loader-${MOD_VERSION}.jar (top of the assets list) plus Fabric API. It grabs the right build for your game version on launch.
+Grab 2p2tvoice-0-loader-${MOD_VERSION}.jar from the top of the assets list and Fabric API. It pulls the right build for your Minecraft version when you launch.
 
-Per-version jars are still attached if you want to install one directly."
+The +mc jars are still there if you want a direct install."
 fi
 
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
