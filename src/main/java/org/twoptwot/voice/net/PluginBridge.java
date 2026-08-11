@@ -12,6 +12,7 @@ import org.twoptwot.voice.ModIntegrity;
 import org.twoptwot.voice.ServerGate;
 import org.twoptwot.voice.VoiceDebug;
 import org.twoptwot.voice.audio.VoiceController;
+import org.twoptwot.voice.update.ModUpdater;
 
 import java.nio.charset.StandardCharsets;
 
@@ -19,14 +20,15 @@ public final class PluginBridge {
 
     public static final Identifier CHANNEL_ID = Identifier.fromNamespaceAndPath("twoptwotvoice", "main");
 
-    private static final int RETRY_AT_TICK = 40;
-    private static final int GIVE_UP_TICKS = 120;
+    private static final int RETRY_INTERVAL_TICKS = 40;
+    private static final int GIVE_UP_TICKS = 200;
 
     private final SignalingClient signaling;
     private final VoiceController controller;
     private boolean awaiting;
     private int waitTicks;
     private boolean sessionRequested;
+    private int nextHelloAtTick;
 
     public PluginBridge(SignalingClient signaling, VoiceController controller) {
         this.signaling = signaling;
@@ -49,6 +51,7 @@ public final class PluginBridge {
 
     public void onJoin() {
         waitTicks = 0;
+        nextHelloAtTick = 0;
         sessionRequested = false;
         awaiting = false;
         VoiceDebug.snapshot("join canSend=" + ClientPlayNetworking.canSend(VoicePluginPayload.TYPE));
@@ -57,6 +60,7 @@ public final class PluginBridge {
 
     public void onLeave() {
         waitTicks = 0;
+        nextHelloAtTick = 0;
         awaiting = false;
         sessionRequested = false;
     }
@@ -66,15 +70,16 @@ public final class PluginBridge {
             return;
         }
         waitTicks++;
-        if (waitTicks == RETRY_AT_TICK) {
-            VoiceDebug.log("hello retry canSend=" + ClientPlayNetworking.canSend(VoicePluginPayload.TYPE));
-            sendHello("retry");
-            return;
-        }
         if (waitTicks >= GIVE_UP_TICKS) {
             awaiting = false;
-            VoiceDebug.snapshot("hello-timeout");
+            VoiceDebug.snapshot("hello-timeout canSend=" + ClientPlayNetworking.canSend(VoicePluginPayload.TYPE));
             controller.setStatus("Voice is unavailable");
+            return;
+        }
+        if (waitTicks >= nextHelloAtTick) {
+            VoiceDebug.log("hello attempt tick=" + waitTicks
+                    + " canSend=" + ClientPlayNetworking.canSend(VoicePluginPayload.TYPE));
+            sendHello(waitTicks == 0 ? "auto" : "retry", false);
         }
     }
 
@@ -91,30 +96,37 @@ public final class PluginBridge {
             sessionRequested = false;
             awaiting = false;
             waitTicks = 0;
+            nextHelloAtTick = 0;
         }
-        sendHello(manual ? "manual" : "auto");
+        sendHello(manual ? "manual" : "auto", true);
     }
 
-    private void sendHello(String reason) {
+    private void sendHello(String reason, boolean resetWait) {
         if (!ServerGate.isAllowed()) {
             return;
         }
         awaiting = true;
         sessionRequested = true;
-        waitTicks = 0;
+        if (resetWait) {
+            waitTicks = 0;
+        }
+        nextHelloAtTick = waitTicks + RETRY_INTERVAL_TICKS;
         controller.setStatus("Connecting…");
+
+        if (!ClientPlayNetworking.canSend(VoicePluginPayload.TYPE)) {
+            VoiceDebug.log("hello deferred reason=" + reason + " canSend=false");
+            return;
+        }
+
         JsonObject hello = new JsonObject();
         hello.addProperty("t", "hello");
-        String version = net.fabricmc.loader.api.FabricLoader.getInstance()
-                .getModContainer("twoptwotvoice")
-                .map(c -> c.getMetadata().getVersion().getFriendlyString())
-                .orElse("unknown");
+        String version = ModUpdater.installedVersion();
         hello.addProperty("v", version);
         hello.addProperty("h", ModIntegrity.jarSha256());
         hello.addProperty("s", ModIntegrity.signature(version));
         String hash = ModIntegrity.jarSha256();
         VoiceDebug.log("hello sent reason=" + reason
-                + " canSend=" + ClientPlayNetworking.canSend(VoicePluginPayload.TYPE)
+                + " canSend=true"
                 + " v=" + version
                 + " hash=" + (hash.isEmpty() ? "-" : hash.substring(0, Math.min(12, hash.length())))
                 + " signed=" + ModIntegrity.isSigned());
@@ -122,8 +134,6 @@ public final class PluginBridge {
             ClientPlayNetworking.send(new VoicePluginPayload(hello.toString()));
         } catch (Exception e) {
             VoiceDebug.log("hello send failed: " + e.getMessage());
-            awaiting = false;
-            controller.setStatus("Voice is unavailable");
         }
     }
 

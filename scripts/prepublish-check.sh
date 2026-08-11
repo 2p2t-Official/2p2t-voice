@@ -41,7 +41,9 @@ for req in \
   src/main/java/org/twoptwot/voice/ClasspathAssets.java \
   loader/src/main/java/org/twoptwot/voice/loader/VoicePreLaunch.java \
   loader/src/main/java/org/twoptwot/voice/loader/KnotInjector.java \
-  loader/src/main/resources/fabric.mod.json
+  loader/src/main/resources/fabric.mod.json \
+  loader/src/main/resources/assets/twoptwotvoice/textures/gui/logo.png \
+  loader/src/main/resources/assets/twoptwotvoice/textures/gui/menu_bg.png
 do
   [[ -f "$req" ]] || fail "missing $req"
 done

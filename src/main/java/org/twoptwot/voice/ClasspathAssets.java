@@ -4,12 +4,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.NativeImage;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.util.FormattedCharSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,44 +20,87 @@ import org.twoptwot.voice.ui.menu.MenuChrome;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 public final class ClasspathAssets {
 
     private static final Logger LOG = LoggerFactory.getLogger("2p2t-voice-assets");
+    private static boolean scheduled;
     private static boolean registered;
+    private static boolean langInjected;
 
     private ClasspathAssets() {
     }
 
     public static void register() {
-        if (registered) {
+        if (scheduled || registered) {
             return;
         }
-        registered = true;
-        registerTexture(MenuChrome.LOGO, "assets/twoptwotvoice/textures/gui/logo.png");
-        registerTexture(MenuChrome.MENU_BG, "assets/twoptwotvoice/textures/gui/menu_bg.png");
-        injectLang();
+        scheduled = true;
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (registered) {
+                return;
+            }
+            if (client == null || client.getTextureManager() == null) {
+                return;
+            }
+            tryRegister(client);
+        });
     }
 
-    private static void registerTexture(Identifier id, String classpath) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null) {
-            return;
+    private static void tryRegister(Minecraft mc) {
+        boolean logoOk = ensureTexture(mc, MenuChrome.LOGO, "assets/twoptwotvoice/textures/gui/logo.png");
+        boolean bgOk = ensureTexture(mc, MenuChrome.MENU_BG, "assets/twoptwotvoice/textures/gui/menu_bg.png");
+        if (!langInjected) {
+            injectLang();
+            langInjected = true;
         }
+        if (logoOk && bgOk) {
+            registered = true;
+        }
+    }
+
+    private static boolean ensureTexture(Minecraft mc, Identifier id, String classpath) {
+        if (resourcePresent(mc, id)) {
+            return true;
+        }
+        return registerTexture(mc, id, classpath);
+    }
+
+    private static boolean resourcePresent(Minecraft mc, Identifier id) {
+        try {
+            Optional<Resource> res = mc.getResourceManager().getResource(id);
+            return res != null && res.isPresent();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean registerTexture(Minecraft mc, Identifier id, String classpath) {
         try (InputStream in = open(classpath)) {
             if (in == null) {
                 LOG.warn("Missing classpath texture {}", classpath);
-                return;
+                return false;
             }
             NativeImage image = NativeImage.read(in);
             AbstractTexture texture = createDynamicTexture(id, image);
             mc.getTextureManager().register(id, texture);
+            return true;
         } catch (Exception e) {
-            LOG.warn("Failed to register texture {}: {}", id, e.toString());
+            Throwable cause = e;
+            if (e instanceof InvocationTargetException) {
+                Throwable nested = e.getCause();
+                if (nested != null) {
+                    cause = nested;
+                }
+            }
+            LOG.warn("Failed to register texture {}: {}", id, cause.toString());
+            return false;
         }
     }
 

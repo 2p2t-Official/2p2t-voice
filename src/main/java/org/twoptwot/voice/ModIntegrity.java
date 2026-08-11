@@ -87,12 +87,11 @@ public final class ModIntegrity {
     }
 
     private static String computeJarSha256() {
+        Path path = resolveJarPath();
+        if (path == null || !Files.isRegularFile(path)) {
+            return "";
+        }
         try {
-            URI uri = ModIntegrity.class.getProtectionDomain().getCodeSource().getLocation().toURI();
-            Path path = Path.of(uri);
-            if (!Files.isRegularFile(path)) {
-                return "";
-            }
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             try (JarFile jar = new JarFile(path.toFile())) {
                 var entries = jar.entries();
@@ -125,5 +124,27 @@ public final class ModIntegrity {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    private static Path resolveJarPath() {
+        String prop = System.getProperty("twoptwotvoice.payload.path", "");
+        if (prop != null && !prop.isBlank()) {
+            try {
+                Path fromProp = Path.of(prop);
+                if (Files.isRegularFile(fromProp)) {
+                    return fromProp;
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        try {
+            URI uri = ModIntegrity.class.getProtectionDomain().getCodeSource().getLocation().toURI();
+            Path path = Path.of(uri);
+            if (Files.isRegularFile(path)) {
+                return path;
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 }
