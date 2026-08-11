@@ -11,7 +11,6 @@ mkdir -p "$DIST"
 export JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}"
 export PATH="$JAVA_HOME/bin:$PATH"
 
-# Keep loader version in sync with the voice mod release.
 sed -i "s/^mod_version=.*/mod_version=${MOD_VERSION}/" loader/gradle.properties
 
 echo "=== Building voice loader ${MOD_VERSION} ==="
@@ -26,7 +25,7 @@ if [[ -z "$jar" ]]; then
   exit 1
 fi
 
-out="$DIST/twoptwotvoice-loader-${MOD_VERSION}.jar"
+out="$DIST/2p2tvoice-0-loader-${MOD_VERSION}.jar"
 cp -f "$jar" "$out"
 echo "OK $out"
 ls -lh "$out"

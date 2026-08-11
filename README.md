@@ -13,7 +13,7 @@ Fabric client mod for [2p2t](https://2p2t.org) proximity and channel voice chat.
 
 1. Install Fabric for your game version.
 2. Install Fabric API for that same version.
-3. Drop **`twoptwotvoice-loader-….jar`** into `.minecraft/mods` (one jar for every Minecraft version).
+3. Drop **`2p2tvoice-0-loader-….jar`** into `.minecraft/mods` (one jar for every Minecraft version).
 4. Launch the game once — the loader downloads the matching voice build into `config/twoptwotvoice/payload/` and starts it in the same launch.
 5. Join the server and open the voice menu (Controls → 2p2t Voice Chat).
 
@@ -48,7 +48,7 @@ Release assets cover:
 ./scripts/build-loader.sh
 ```
 
-Output: `dist/twoptwotvoice-loader-<mod>.jar`
+Output: `dist/2p2tvoice-0-loader-<mod>.jar`
 
 ### One Minecraft version (payload)
 

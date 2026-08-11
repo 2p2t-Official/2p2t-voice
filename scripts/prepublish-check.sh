@@ -69,7 +69,7 @@ echo "Smoke build 26.1..."
 ./scripts/build-one.sh 26.1 >/tmp/voice-prepublish-26.1.log 2>&1 \
   || { tail -40 /tmp/voice-prepublish-26.1.log >&2; fail "build-one 26.1 failed"; }
 
-[[ -f "dist/twoptwotvoice-loader-${MOD_VERSION}.jar" ]] || fail "missing loader jar"
+[[ -f "dist/2p2tvoice-0-loader-${MOD_VERSION}.jar" ]] || fail "missing loader jar"
 [[ -f "dist/2p2tvoice-${MOD_VERSION}+1.21.1.jar" ]] || fail "missing 1.21.1 jar"
 [[ -f "dist/2p2tvoice-${MOD_VERSION}+26.1.jar" ]] || fail "missing 26.1 jar"
 

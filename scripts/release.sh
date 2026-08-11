@@ -77,8 +77,14 @@ if [[ "$SKIP_BUILD" -eq 0 ]]; then
   ./scripts/build-loader.sh
 fi
 
+LOADER_JAR="$DIST/2p2tvoice-0-loader-${MOD_VERSION}.jar"
+if [[ ! -f "$LOADER_JAR" ]]; then
+  echo "Release aborted: missing loader jar $LOADER_JAR" >&2
+  exit 1
+fi
+
 missing=()
-jars=()
+jars=("$LOADER_JAR")
 for mc in "${EXPECTED[@]}"; do
   jar="$DIST/2p2tvoice-${MOD_VERSION}+${mc}.jar"
   if [[ -f "$jar" ]]; then
@@ -87,13 +93,6 @@ for mc in "${EXPECTED[@]}"; do
     missing+=("$mc")
   fi
 done
-
-LOADER_JAR="$DIST/twoptwotvoice-loader-${MOD_VERSION}.jar"
-if [[ ! -f "$LOADER_JAR" ]]; then
-  echo "Release aborted: missing loader jar $LOADER_JAR" >&2
-  exit 1
-fi
-jars+=("$LOADER_JAR")
 
 if ((${#missing[@]} > 0)); then
   echo "Release aborted: missing jars for: ${missing[*]}" >&2
@@ -104,7 +103,7 @@ if ((${#missing[@]} > 0)); then
   exit 1
 fi
 
-echo "All $((${#jars[@]})) release jars present for ${MOD_VERSION} (including loader)."
+echo "All $((${#jars[@]})) release jars present for ${MOD_VERSION} (loader first)."
 
 HASH_FILE="$DIST/voice-allowed-hashes-${MOD_VERSION}.txt"
 : > "$HASH_FILE"
@@ -138,12 +137,11 @@ if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
 fi
 
 if [[ -z "$NOTES" ]]; then
-  NOTES="2p2t Voice Chat ${MOD_VERSION}
+  NOTES="1.2.15
 
-Recommended: install twoptwotvoice-loader-${MOD_VERSION}.jar + Fabric API.
-The loader downloads the matching build for your Minecraft version on launch.
+Install 2p2tvoice-0-loader-${MOD_VERSION}.jar (top of the assets list) plus Fabric API. It grabs the right build for your game version on launch.
 
-Versioned jars (2p2tvoice-${MOD_VERSION}+<mc>.jar) are still available for direct install."
+Per-version jars are still attached if you want to install one directly."
 fi
 
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
@@ -159,4 +157,4 @@ else
 fi
 
 echo "Published $TAG with ${#jars[@]} assets:"
-gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' | sort
+printf '%s\n' "${jars[@]}" | xargs -n1 basename

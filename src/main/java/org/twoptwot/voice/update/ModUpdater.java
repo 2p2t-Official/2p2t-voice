@@ -531,6 +531,7 @@ public final class ModUpdater {
     private static boolean isLoaderJarName(String lowerFileName) {
         return lowerFileName.contains("twoptwotvoice-loader")
                 || lowerFileName.contains("2p2tvoice-loader")
+                || lowerFileName.contains("2p2tvoice-0-loader")
                 || (lowerFileName.contains("loader") && (lowerFileName.startsWith("twoptwotvoice")
                 || lowerFileName.startsWith("2p2tvoice")));
     }
