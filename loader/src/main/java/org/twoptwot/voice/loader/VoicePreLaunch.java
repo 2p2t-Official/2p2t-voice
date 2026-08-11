@@ -24,6 +24,7 @@ public final class VoicePreLaunch implements PreLaunchEntrypoint {
             LoaderState.LOG.info("2p2t Voice {} injected for this launch", version);
         } catch (Throwable t) {
             String msg = t.getMessage() == null ? t.toString() : t.getMessage();
+            LoaderState.LOG.error("Voice loader failed", t);
             LoaderState.setError(msg);
             showFailureDialog(msg);
         }
