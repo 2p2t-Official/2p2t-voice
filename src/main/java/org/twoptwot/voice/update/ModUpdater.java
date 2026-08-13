@@ -366,9 +366,11 @@ public final class ModUpdater {
         Path dir = payloadDir();
         Files.createDirectories(dir);
         String mc = minecraftVersion();
-        Path target = dir.resolve("twoptwotvoice-+" + mc.replaceAll("[^a-zA-Z0-9._-]", "_") + ".jar");
-        Path tmp = dir.resolve(target.getFileName().toString() + ".download");
-        Path meta = dir.resolve(target.getFileName().toString().replace(".jar", ".meta"));
+        String baseName = "twoptwotvoice-+" + mc.replaceAll("[^a-zA-Z0-9._-]", "_") + ".jar";
+        Path target = dir.resolve(baseName);
+        Path tmp = dir.resolve(baseName + ".download");
+        Path staged = dir.resolve(baseName + ".next");
+        Path meta = dir.resolve(baseName.replace(".jar", ".meta"));
         HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(Duration.ofSeconds(15)).build();
         HttpRequest req = HttpRequest.newBuilder(URI.create(url))
@@ -383,14 +385,27 @@ public final class ModUpdater {
         try (InputStream in = res.body()) {
             Files.copy(in, tmp, StandardCopyOption.REPLACE_EXISTING);
         }
-        Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+        Path installed;
+        try {
+            Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+            tryDelete(staged);
+            installed = target;
+        } catch (Exception replaceFail) {
+            try {
+                Files.move(tmp, staged, StandardCopyOption.REPLACE_EXISTING);
+                installed = staged;
+            } catch (Exception stageFail) {
+                tryDelete(tmp);
+                throw new IllegalStateException("payload locked — close Minecraft and Update now", stageFail);
+            }
+        }
         Files.writeString(meta, (tag == null ? "" : tag) + "\n" + assetName + "\n");
-        Files.writeString(payloadStampPath(), (tag == null ? "" : tag) + "\n" + target.toAbsolutePath().normalize());
-        System.setProperty("twoptwotvoice.payload.path", target.toAbsolutePath().normalize().toString());
+        Files.writeString(payloadStampPath(), (tag == null ? "" : tag) + "\n" + installed.toAbsolutePath().normalize());
+        System.setProperty("twoptwotvoice.payload.path", installed.toAbsolutePath().normalize().toString());
         if (tag != null && !tag.isBlank()) {
             System.setProperty("twoptwotvoice.payload.version", tag);
         }
-        return target;
+        return installed;
     }
 
     private static Path installJar(String url, String assetName) throws Exception {
@@ -582,11 +597,25 @@ public final class ModUpdater {
     }
 
     private static String shortMsg(Throwable t) {
-        String m = t.getMessage();
-        if (m == null || m.isBlank()) {
-            return t.getClass().getSimpleName();
+        StringBuilder sb = new StringBuilder();
+        for (Throwable c = t; c != null; c = c.getCause()) {
+            if (sb.length() > 0) {
+                sb.append(" | ");
+            }
+            String m = c.getMessage();
+            if (m == null || m.isBlank()) {
+                sb.append(c.getClass().getSimpleName());
+            } else if (m.length() > 60 && (m.contains("\\") || m.contains("/"))) {
+                sb.append(c.getClass().getSimpleName());
+            } else {
+                sb.append(m);
+            }
+            if (sb.length() > 90) {
+                break;
+            }
         }
-        return m.length() > 80 ? m.substring(0, 80) + "…" : m;
+        String out = sb.toString();
+        return out.length() > 90 ? out.substring(0, 90) + "…" : out;
     }
 
     private record CheckResult(String tag, String assetName, String assetUrl, boolean updateAvailable) {

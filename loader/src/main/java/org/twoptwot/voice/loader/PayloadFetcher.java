@@ -36,6 +36,21 @@ public final class PayloadFetcher {
         Files.createDirectories(dir);
         Path cached = dir.resolve("twoptwotvoice-+" + sanitize(mc) + ".jar");
         Path meta = dir.resolve("twoptwotvoice-+" + sanitize(mc) + ".meta");
+        Path staged = dir.resolve(cached.getFileName().toString() + ".next");
+
+        if (Files.isRegularFile(staged) && isValidPayloadJar(staged)) {
+            try {
+                Files.move(staged, cached, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            } catch (Exception ignored) {
+                try {
+                    Files.move(staged, cached, StandardCopyOption.REPLACE_EXISTING);
+                } catch (Exception replaceFail) {
+                    LoaderState.LOG.info("Using staged payload {}", staged.getFileName());
+                    return staged;
+                }
+            }
+            LoaderState.LOG.info("Promoted staged payload to {}", cached.getFileName());
+        }
 
         ReleaseAsset remote = null;
         try {
