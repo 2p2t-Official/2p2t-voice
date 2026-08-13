@@ -87,10 +87,24 @@ public final class VoiceHud {
         boolean debug = controller.config().hudDebug;
 
         String channel = VoiceUi.channelTitle(controller.getChannel());
-        String mic = muted ? "MUTED" : (deaf ? "DEAF" : (live ? "LIVE" : (
-                controller.isTransmitting() ? "OPEN" : "IDLE")));
+        String prefix = "2p2t  ·  " + channel + "  ·  ";
+        String mic;
+        int micColor;
+        if (muted) {
+            mic = "MUTED";
+            micColor = VoiceUi.MUTED;
+        } else if (deaf) {
+            mic = "DEAF";
+            micColor = VoiceUi.MUTED;
+        } else if (live) {
+            mic = "Talking";
+            micColor = VoiceUi.SPEAK;
+        } else {
+            mic = "Not Talking";
+            micColor = VoiceUi.DANGER;
+        }
 
-        String line1 = "2p2t  ·  " + channel + "  ·  " + mic;
+        String line1 = prefix + mic;
         String line2 = null;
         if (debug) {
             String rtc = TwoptwotVoiceClient.get().webRtc().isAvailable()
@@ -138,9 +152,12 @@ public final class VoiceHud {
         int dotColor = on ? (live ? VoiceUi.SPEAK : VoiceUi.ACCENT) : VoiceUi.DANGER;
         VoiceUi.statusDot(graphics, x + pad + 2, y + (h - 6) / 2, dotColor);
 
-        graphics.drawString(mc.font, line1, x + pad + 12, y + 5, VoiceUi.TEXT, false);
+        int textX = x + pad + 12;
+        int textY = y + 5;
+        graphics.drawString(mc.font, prefix, textX, textY, VoiceUi.TEXT, false);
+        graphics.drawString(mc.font, mic, textX + mc.font.width(prefix), textY, micColor, false);
         if (line2 != null) {
-            graphics.drawString(mc.font, line2, x + pad + 12, y + 15, VoiceUi.TEXT_FAINT, false);
+            graphics.drawString(mc.font, line2, textX, y + 15, VoiceUi.TEXT_FAINT, false);
         }
     }
 

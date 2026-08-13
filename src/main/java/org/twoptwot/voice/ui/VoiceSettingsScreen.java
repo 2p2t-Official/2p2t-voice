@@ -18,7 +18,7 @@ public final class VoiceSettingsScreen extends Screen {
     private final VoiceConfig config = controller.config();
     private List<AudioDevices.Device> inputs = AudioDevices.listInputs();
     private List<AudioDevices.Device> outputs = AudioDevices.listOutputs();
-    private VoiceButton updateNowBtn;
+    private VoiceButton updateActionBtn;
 
     private int panelX;
     private int panelY;
@@ -35,7 +35,7 @@ public final class VoiceSettingsScreen extends Screen {
         inputs = AudioDevices.listInputs();
         outputs = AudioDevices.listOutputs();
         panelW = Math.min(340, width - 40);
-        panelH = Math.min(520, height - 20);
+        panelH = Math.min(500, height - 20);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
 
@@ -170,8 +170,9 @@ public final class VoiceSettingsScreen extends Screen {
                 b -> minecraft.setScreen(new HudMoveScreen(this))));
         y += 24;
 
+        int half = cw / 2 - 4;
         addRenderableWidget(new VoiceButton(
-                cx, y, cw, 20,
+                cx, y, half, 20,
                 Component.literal("Auto-update: " + (config.autoUpdate ? "ON" : "OFF")),
                 config.autoUpdate ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
                 b -> {
@@ -180,23 +181,20 @@ public final class VoiceSettingsScreen extends Screen {
                     b.setMessage(Component.literal("Auto-update: " + (config.autoUpdate ? "ON" : "OFF")));
                     b.setStyle(config.autoUpdate ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
                 }));
-        y += 22;
-
-        addRenderableWidget(new VoiceButton(
-                cx, y, cw / 2 - 4, 20,
-                Component.literal("Check updates"),
-                VoiceButton.Style.GHOST,
-                b -> ModUpdater.checkAsync(true)));
-        updateNowBtn = addRenderableWidget(new VoiceButton(
-                cx + cw / 2 + 4, y, cw / 2 - 4, 20,
-                Component.literal(ModUpdater.isUpdateAvailable() ? "Update now" : "Up to date"),
+        updateActionBtn = addRenderableWidget(new VoiceButton(
+                cx + half + 8, y, half, 20,
+                Component.literal(updateActionLabel()),
                 ModUpdater.isUpdateAvailable() ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST,
                 b -> {
+                    if (ModUpdater.isChecking() || ModUpdater.isUpdating()) {
+                        return;
+                    }
                     if (ModUpdater.isUpdateAvailable()) {
                         ModUpdater.applyUpdateAsync(true);
+                    } else {
+                        ModUpdater.checkAsync(true);
                     }
                 }));
-        updateNowBtn.active = ModUpdater.isUpdateAvailable();
         y += 24;
 
         addRenderableWidget(new VoiceButton(
@@ -217,16 +215,30 @@ public final class VoiceSettingsScreen extends Screen {
                 b -> minecraft.setScreen(parent)));
     }
 
+    private static String updateActionLabel() {
+        if (ModUpdater.isUpdating()) {
+            return "Updating…";
+        }
+        if (ModUpdater.isChecking()) {
+            return "Checking…";
+        }
+        if (ModUpdater.isUpdateAvailable()) {
+            return "Update Now";
+        }
+        return "Check for Updates";
+    }
+
     @Override
     public void tick() {
         super.tick();
-        if (updateNowBtn == null) {
+        if (updateActionBtn == null) {
             return;
         }
+        boolean busy = ModUpdater.isChecking() || ModUpdater.isUpdating();
         boolean avail = ModUpdater.isUpdateAvailable();
-        updateNowBtn.active = avail;
-        updateNowBtn.setMessage(Component.literal(avail ? "Update now" : "Up to date"));
-        updateNowBtn.setStyle(avail ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
+        updateActionBtn.active = !busy;
+        updateActionBtn.setMessage(Component.literal(updateActionLabel()));
+        updateActionBtn.setStyle(avail && !busy ? VoiceButton.Style.PRIMARY : VoiceButton.Style.GHOST);
     }
 
     @Override

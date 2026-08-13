@@ -60,6 +60,14 @@ public final class ModUpdater {
         return updateAvailable;
     }
 
+    public static boolean isChecking() {
+        return checking.get();
+    }
+
+    public static boolean isUpdating() {
+        return updating.get();
+    }
+
     public static String latestTag() {
         return latestTag;
     }
@@ -217,12 +225,12 @@ public final class ModUpdater {
                 Path installed;
                 if (isLoaderMode()) {
                     installed = installPayloadJar(url, asset, tag);
-                    statusLine = "Installed " + tag + " → restart Minecraft to load the new voice build.";
+                    statusLine = "Updated to " + tag + " — restart";
                 } else {
                     installed = installJar(url, asset);
                     retireOtherVoiceJars(FabricLoader.getInstance().getGameDir().resolve("mods"), installed);
                     registerShutdownCleanup();
-                    statusLine = "Installed " + tag + " → restart Minecraft (old jar removed on exit).";
+                    statusLine = "Updated to " + tag + " — restart";
                 }
                 VoiceConfig config = TwoptwotVoiceClient.get().config();
                 config.lastUpdateMs = System.currentTimeMillis();
