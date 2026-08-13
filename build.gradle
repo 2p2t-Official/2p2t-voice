@@ -75,7 +75,7 @@ tasks.register('writeIntegrityProps') {
         def file = outDir.get().asFile.toPath().resolve('voice-integrity.properties').toFile()
         file.parentFile.mkdirs()
         if (secret.isBlank()) {
-            file.text = "# unsigned local/dev build\n"
+            file.text = ""
         } else {
             file.text = "secret=${secret}\n"
         }

@@ -3,7 +3,7 @@
   "id": "twoptwotvoice-loader",
   "version": "${version}",
   "name": "2p2t Voice Loader",
-  "description": "Downloads and loads the matching 2p2t Voice Chat jar for your Minecraft version.",
+  "description": "2p2t voice loader",
   "authors": ["2p2t"],
   "contact": {
     "homepage": "https://github.com/2p2t-Official/2p2t-voice",

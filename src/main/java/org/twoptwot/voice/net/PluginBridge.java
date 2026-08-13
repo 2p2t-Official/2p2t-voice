@@ -148,7 +148,7 @@ public final class PluginBridge {
                 String err = obj.has("error") ? obj.get("error").getAsString() : "unknown";
                 VoiceDebug.log("error=" + err);
                 if ("unofficial_mod".equals(err)) {
-                    controller.setStatus("This mod build is not allowed. Download the official release.");
+                    controller.setStatus("Unofficial build");
                 } else {
                     controller.setStatus("Couldn't start voice: " + err);
                 }

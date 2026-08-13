@@ -13,7 +13,7 @@ public final class VoicePreLaunch implements PreLaunchEntrypoint {
     public void onPreLaunch() {
         if (LoaderState.voiceModAlreadyPresent()) {
             LoaderState.markSkippedDirectJar();
-            LoaderState.LOG.info("Full 2p2t Voice jar already loaded — loader standing down");
+            LoaderState.LOG.info("Direct jar present — loader idle");
             return;
         }
         try {
@@ -37,7 +37,7 @@ public final class VoicePreLaunch implements PreLaunchEntrypoint {
         try {
             SwingUtilities.invokeAndWait(() -> JOptionPane.showMessageDialog(
                     null,
-                    "2p2t Voice could not load.\n\n" + detail + "\n\nThe game will continue without voice.",
+                    "2p2t Voice: " + detail,
                     "2p2t Voice Loader",
                     JOptionPane.WARNING_MESSAGE));
         } catch (Throwable ignored) {

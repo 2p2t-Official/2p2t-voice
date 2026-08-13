@@ -10,7 +10,7 @@ public final class VoiceLoaderClient implements ClientModInitializer {
             return;
         }
         if (!LoaderState.isInjected()) {
-            LoaderState.LOG.error("Payload was not injected — voice client will not start");
+            LoaderState.LOG.error("Payload not injected");
             return;
         }
         try {

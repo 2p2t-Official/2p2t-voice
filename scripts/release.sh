@@ -41,7 +41,7 @@ if [[ -z "${VOICE_INTEGRITY_SECRET:-}" && -f "$ROOT/.integrity-secret" ]]; then
   export VOICE_INTEGRITY_SECRET
 fi
 if [[ -z "${VOICE_INTEGRITY_SECRET:-}" ]]; then
-  echo "VOICE_INTEGRITY_SECRET (or .integrity-secret) is required for official releases." >&2
+  echo "VOICE_INTEGRITY_SECRET missing" >&2
   exit 1
 fi
 TAG="v${MOD_VERSION}"
@@ -107,7 +107,7 @@ echo "All $((${#jars[@]})) release jars present for ${MOD_VERSION} (loader first
 
 HASH_FILE="$DIST/voice-allowed-hashes-${MOD_VERSION}.txt"
 : > "$HASH_FILE"
-echo "# 2p2tvoice ${MOD_VERSION}" >> "$HASH_FILE"
+echo "2p2tvoice ${MOD_VERSION}" >> "$HASH_FILE"
 for jar in "${jars[@]}"; do
   base="$(basename "$jar")"
   if [[ "$base" == *loader* ]]; then
@@ -137,11 +137,7 @@ if [[ "$SKIP_UPLOAD" -eq 1 ]]; then
 fi
 
 if [[ -z "$NOTES" ]]; then
-  NOTES="${MOD_VERSION}
-
-Grab 2p2tvoice-0-loader-${MOD_VERSION}.jar from the top of the assets list and Fabric API. It pulls the right build for your Minecraft version when you launch.
-
-The +mc jars are still there if you want a direct install."
+  NOTES="${MOD_VERSION}"
 fi
 
 if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then

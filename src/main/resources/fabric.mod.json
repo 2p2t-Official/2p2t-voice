@@ -3,7 +3,7 @@
   "id": "twoptwotvoice",
   "version": "${version}",
   "name": "2p2t Voice Chat",
-  "description": "In-game proximity voice chat compatible with voice.2p2t.org browser clients.",
+  "description": "2p2t voice",
   "authors": ["2p2t"],
   "contact": {
     "homepage": "https://github.com/2p2t-Official/2p2t-voice",

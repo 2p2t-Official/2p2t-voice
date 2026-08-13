@@ -60,7 +60,7 @@ public final class KnotInjector {
             }
         }
         if (count == 0) {
-            LoaderState.LOG.warn("Payload has no META-INF/jars nested jars (WebSocket may be missing)");
+            LoaderState.LOG.warn("No nested jars in payload");
         } else {
             LoaderState.LOG.info("Injected {} nested jar(s) from payload", count);
         }
