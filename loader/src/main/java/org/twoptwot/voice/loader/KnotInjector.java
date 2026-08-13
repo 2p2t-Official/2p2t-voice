@@ -1,13 +1,20 @@
 package org.twoptwot.voice.loader;
 
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 public final class KnotInjector {
 
@@ -15,6 +22,51 @@ public final class KnotInjector {
     }
 
     public static void addJar(Path jar) throws Exception {
+        injectOne(jar, "payload");
+        injectNestedJars(jar);
+    }
+
+    private static void injectNestedJars(Path payloadJar) throws Exception {
+        Path nestDir = LoaderState.payloadDir().resolve("nested");
+        Files.createDirectories(nestDir);
+        int count = 0;
+        try (ZipFile zip = new ZipFile(payloadJar.toFile())) {
+            Enumeration<? extends ZipEntry> entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (entry.isDirectory()) {
+                    continue;
+                }
+                String name = entry.getName().replace('\\', '/');
+                if (!name.startsWith("META-INF/jars/") || !name.toLowerCase(Locale.ROOT).endsWith(".jar")) {
+                    continue;
+                }
+                String fileName = name.substring(name.lastIndexOf('/') + 1);
+                if (fileName.isBlank()) {
+                    continue;
+                }
+                Path dest = nestDir.resolve(fileName);
+                long expected = entry.getSize();
+                boolean needsCopy = !Files.isRegularFile(dest)
+                        || expected < 0
+                        || Files.size(dest) != expected;
+                if (needsCopy) {
+                    try (InputStream in = zip.getInputStream(entry)) {
+                        Files.copy(in, dest, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                }
+                injectOne(dest, "nested:" + fileName);
+                count++;
+            }
+        }
+        if (count == 0) {
+            LoaderState.LOG.warn("Payload has no META-INF/jars nested jars (WebSocket may be missing)");
+        } else {
+            LoaderState.LOG.info("Injected {} nested jar(s) from payload", count);
+        }
+    }
+
+    private static void injectOne(Path jar, String label) throws Exception {
         URL url = jar.toUri().toURL();
         List<String> tried = new ArrayList<>();
         Throwable last = null;
@@ -27,25 +79,25 @@ public final class KnotInjector {
                 continue;
             }
             for (ClassLoader cl = cursor; cl != null; cl = cl.getParent()) {
-                String label = cl.getClass().getName();
-                if (tried.contains(label + "@" + System.identityHashCode(cl))) {
+                String key = cl.getClass().getName() + "@" + System.identityHashCode(cl);
+                if (tried.contains(key)) {
                     continue;
                 }
-                tried.add(label + "@" + System.identityHashCode(cl));
+                tried.add(key);
                 try {
                     if (tryAddUrl(cl, jar, url)) {
-                        LoaderState.LOG.info("Injected payload into {}", label);
+                        LoaderState.LOG.info("Injected {} into {}", label, cl.getClass().getName());
                         return;
                     }
                 } catch (Throwable t) {
                     last = t;
-                    LoaderState.LOG.warn("Inject attempt failed on {}: {}", label, t.toString());
+                    LoaderState.LOG.warn("Inject attempt failed for {} on {}: {}", label, cl.getClass().getName(), t.toString());
                 }
             }
         }
 
         IllegalStateException ex = new IllegalStateException(
-                "Could not add jar to Knot classloader (tried " + tried.size() + " loaders)", last);
+                "Could not add " + label + " to Knot classloader (tried " + tried.size() + " loaders)", last);
         throw ex;
     }
 

@@ -14,10 +14,14 @@ public final class VoiceLoaderClient implements ClientModInitializer {
             return;
         }
         try {
-            Class<?> clazz = Class.forName(
-                    "org.twoptwot.voice.TwoptwotVoiceClient",
-                    true,
-                    VoiceLoaderClient.class.getClassLoader());
+            ClassLoader cl = VoiceLoaderClient.class.getClassLoader();
+            try {
+                Class.forName("org.java_websocket.client.WebSocketClient", false, cl);
+            } catch (ClassNotFoundException missingWs) {
+                throw new IllegalStateException(
+                        "Java-WebSocket missing after payload inject (nested jar not loaded)", missingWs);
+            }
+            Class<?> clazz = Class.forName("org.twoptwot.voice.TwoptwotVoiceClient", true, cl);
             Object instance = clazz.getDeclaredConstructor().newInstance();
             clazz.getMethod("onInitializeClient").invoke(instance);
             LoaderState.LOG.info("Started TwoptwotVoiceClient from injected payload");
